@@ -403,7 +403,7 @@ export default function InboxPage() {
                     onKeyDown={handleKeyDown}
                     rows={1}
                     placeholder={t("Write a reply…  (Enter to send, Shift+Enter for a new line)")}
-                    className="max-h-32 min-h-[40px] flex-1 resize-none rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/40 focus:outline-none"
+                    className="max-h-32 min-h-[40px] flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none"
                   />
                   <button
                     type="button"

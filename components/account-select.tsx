@@ -28,13 +28,13 @@ export default function AccountSelect({
   const { t } = useI18n();
   return (
     <label className="flex flex-col gap-2 text-sm">
-      <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+      <span className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
         {label ?? t("Instagram account")}
       </span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="min-w-52 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent/40"
+        className="min-w-52 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent/60 focus:ring-3 focus:ring-accent/15"
       >
         {includeAll && <option value="all">{t("All accounts")}</option>}
         {accounts.map((account) => (

@@ -138,12 +138,12 @@ export default function LogsPage() {
           <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="border-b border-border text-left">
-                <th className="px-4 py-4 text-xs font-semibold text-muted uppercase tracking-wider sm:px-6">{t("Commenter")}</th>
-                <th className="px-4 py-4 text-xs font-semibold text-muted uppercase tracking-wider sm:px-6">{t("Comment")}</th>
-                <th className="px-4 py-4 text-xs font-semibold text-muted uppercase tracking-wider sm:px-6">{t("Campaign")}</th>
-                <th className="px-4 py-4 text-xs font-semibold text-muted uppercase tracking-wider sm:px-6">{t("Account")}</th>
-                <th className="px-4 py-4 text-xs font-semibold text-muted uppercase tracking-wider sm:px-6">{t("Status")}</th>
-                <th className="px-4 py-4 text-xs font-semibold text-muted uppercase tracking-wider sm:px-6">{t("Time")}</th>
+                <th className="px-4 py-4 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted sm:px-6">{t("Commenter")}</th>
+                <th className="px-4 py-4 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted sm:px-6">{t("Comment")}</th>
+                <th className="px-4 py-4 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted sm:px-6">{t("Campaign")}</th>
+                <th className="px-4 py-4 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted sm:px-6">{t("Account")}</th>
+                <th className="px-4 py-4 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted sm:px-6">{t("Status")}</th>
+                <th className="px-4 py-4 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted sm:px-6">{t("Time")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">

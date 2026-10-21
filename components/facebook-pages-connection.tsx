@@ -90,7 +90,7 @@ export function FacebookPagesConnection({ canManage }: { canManage: boolean }) {
         value={token}
         onChange={(e) => setToken(e.target.value)}
         required
-        className="w-full rounded border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent/40"
+        className="w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent/60 focus:ring-3 focus:ring-accent/15"
       />
       <p className="text-xs leading-5 text-muted">
         {t(

@@ -134,7 +134,7 @@ export default function OverviewPage() {
         </div>
         <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
           <label className="flex flex-col gap-2 text-sm">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+            <span className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
               {t("Range")}
             </span>
             <select

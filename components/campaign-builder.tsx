@@ -647,7 +647,7 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t("e.g. YC referral")}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/40 focus:outline-none"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none"
             maxLength={100}
           />
           {accounts.length > 1 && (
@@ -709,7 +709,7 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
                 value={keywordText}
                 onChange={(e) => setKeywordText(e.target.value)}
                 placeholder={t("Enter a word or multiple")}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/40 focus:outline-none"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none"
               />
               <p className="text-xs text-muted">{t("Use commas to separate words")}</p>
             </div>
@@ -759,7 +759,7 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
                     }
                     placeholder={t("Sent you a DM! 📩")}
                     maxLength={1000}
-                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/40 focus:outline-none"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none"
                   />
                   {publicReplyMessages.length > 1 && (
                     <button
@@ -811,14 +811,14 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
                   onChange={(e) => setOpeningDmMessage(e.target.value)}
                   placeholder={t("Hey there! I'm so happy you're here 😊")}
                   rows={3}
-                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/40 focus:outline-none resize-none"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none resize-none"
                   maxLength={1000}
                 />
                 <input
                   value={openingDmButtonLabel}
                   onChange={(e) => setOpeningDmButtonLabel(e.target.value)}
                   placeholder={t("Send me the link")}
-                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/40 focus:outline-none"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none"
                   maxLength={64}
                 />
               </div>
@@ -838,7 +838,7 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
               onChange={(e) => setDmMessage(e.target.value)}
               placeholder={t("Write a message")}
               rows={3}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/40 focus:outline-none resize-none"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none resize-none"
               maxLength={1000}
             />
             {linkOpen ? (
@@ -848,14 +848,14 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
                   onChange={(e) => setTrackedDestinationUrl(e.target.value)}
                   onBlur={ensureLinkToken}
                   placeholder="https://yourlink.com/offer"
-                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/40 focus:outline-none"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none"
                 />
                 <input
                   value={linkButtonLabel}
                   onChange={(e) => setLinkButtonLabel(e.target.value)}
                   placeholder={t("Button label (e.g. Open link)")}
                   maxLength={20}
-                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/40 focus:outline-none"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none"
                 />
                 {secondLinkOpen ? (
                   <div className="space-y-2 border-t border-border pt-2">
@@ -863,14 +863,14 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
                       value={secondaryDestinationUrl}
                       onChange={(e) => setSecondaryDestinationUrl(e.target.value)}
                       placeholder="https://yourlink.com/second"
-                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/40 focus:outline-none"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none"
                     />
                     <input
                       value={secondaryButtonLabel}
                       onChange={(e) => setSecondaryButtonLabel(e.target.value)}
                       placeholder={t("Second button label")}
                       maxLength={20}
-                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/40 focus:outline-none"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none"
                     />
                   </div>
                 ) : (
@@ -913,7 +913,7 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
                   onChange={(e) => setFollowUpMessage(e.target.value)}
                   placeholder={t("Btw just wanted to say thanks for following me, I appreciate the support 🙌")}
                   rows={3}
-                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/40 focus:outline-none resize-none"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none resize-none"
                   maxLength={1000}
                 />
                 <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
@@ -928,7 +928,7 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
                         Math.max(0, Math.min(1440, Math.floor(Number(e.target.value) || 0)))
                       )
                     }
-                    className="w-20 rounded-lg border border-border bg-surface px-2 py-1 text-sm text-foreground focus:border-accent/40 focus:outline-none"
+                    className="w-20 rounded-lg border border-border bg-background px-2 py-1 text-sm text-foreground focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none"
                   />
                   <span className="text-xs text-muted">
                     {t("minutes after the link")}

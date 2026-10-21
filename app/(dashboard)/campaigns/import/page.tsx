@@ -129,7 +129,7 @@ export default function ImportCampaignsPage() {
           onChange={(e) => setCsv(e.target.value)}
           placeholder={SAMPLE}
           rows={10}
-          className="w-full px-4 py-3 rounded bg-surface border border-border text-sm font-mono text-foreground placeholder:text-muted focus:border-accent/40 focus:outline-none resize-y"
+          className="w-full px-4 py-3 rounded bg-background border border-border text-sm font-mono text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none resize-y"
         />
         <button
           type="button"

@@ -152,7 +152,7 @@ export default function SettingsPage() {
 
         {membersData?.invitations.length ? (
           <div className="mt-6 border-t border-border pt-4">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+            <p className="mb-3 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
               {t("Pending invites")}
             </p>
             <div className="space-y-3">
@@ -204,7 +204,7 @@ export default function SettingsPage() {
               value={inviteEmail}
               onChange={(event) => setInviteEmail(event.target.value)}
               placeholder="teammate@agency.com"
-              className="rounded border border-border bg-surface px-4 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent/40"
+              className="rounded border border-border bg-background px-4 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent/60 focus:ring-3 focus:ring-accent/15"
               required
             />
             <select
@@ -212,7 +212,7 @@ export default function SettingsPage() {
               onChange={(event) =>
                 setInviteRole(event.target.value as "ADMIN" | "MEMBER")
               }
-              className="rounded border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent/40"
+              className="rounded border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent/60 focus:ring-3 focus:ring-accent/15"
             >
               <option value="MEMBER">{t("Member")}</option>
               <option value="ADMIN">{t("Admin")}</option>

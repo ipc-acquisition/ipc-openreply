@@ -88,7 +88,7 @@ export default async function LoginPage({
         <div className="panel rounded-xl p-8 shadow-black/40">
           {selectedTemplate && !checkEmail && (
             <div className="mb-5 border border-accent/20 bg-accent/10 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-accent">
                 {t("Template selected")}
               </p>
               <p className="mt-2 text-sm font-semibold text-foreground">
@@ -120,7 +120,7 @@ export default async function LoginPage({
                   required
                   autoComplete="email"
                   placeholder="you@company.com"
-                  className="w-full px-4 py-3 rounded bg-surface border border-border text-sm text-foreground placeholder:text-muted focus:border-accent/40 focus:outline-none transition-colors"
+                  className="w-full px-4 py-3 rounded bg-background border border-border text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none transition-colors"
                 />
               </div>
 

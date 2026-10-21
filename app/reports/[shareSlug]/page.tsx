@@ -29,7 +29,7 @@ function MetricCard({
 }) {
   return (
     <div className="border border-border bg-surface p-5">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+      <p className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
         {label}
       </p>
       <p className="mt-3 text-3xl font-black tracking-tight text-foreground">
@@ -103,7 +103,7 @@ export default async function ReportPage({ params }: ReportPageProps) {
             </div>
 
             <div className="border border-border bg-surface p-4 text-sm text-foreground/80 md:min-w-64">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
                 {t("Workspace")}
               </p>
               <p className="mt-2 font-bold text-foreground">{report.workspace.name}</p>
@@ -259,7 +259,7 @@ export default async function ReportPage({ params }: ReportPageProps) {
           <h2 className="text-xl font-black text-foreground">{t("Campaign Setup")}</h2>
           <div className="mt-5 grid gap-5 md:grid-cols-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
                 {t("Keywords")}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -274,7 +274,7 @@ export default async function ReportPage({ params }: ReportPageProps) {
               </div>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
                 {t("Created")}
               </p>
               <p className="mt-3 text-sm text-foreground/80">
@@ -282,7 +282,7 @@ export default async function ReportPage({ params }: ReportPageProps) {
               </p>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
                 {t("Source post")}
               </p>
               {report.campaign.postUrl ? (

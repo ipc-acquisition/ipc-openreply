@@ -44,7 +44,7 @@ export default function TopBar({
 
   return (
     <header
-      className="sticky top-0 z-30 flex items-center justify-between gap-3 px-4 lg:px-8 border-b border-border bg-background"
+      className="sticky top-0 z-30 flex items-center justify-between gap-3 px-4 lg:px-8 border-b border-border bg-background/80 backdrop-blur-md"
       // Installed to the home screen the app starts at the very top of the
       // display, so without this the title sits under the clock and battery.
       // The inset is 0 in a browser tab and on desktop.
@@ -56,20 +56,25 @@ export default function TopBar({
       <div className="flex min-w-0 items-center gap-3 sm:gap-4">
         <button
           onClick={onMenuClick}
-          className="lg:hidden shrink-0 px-2.5 py-1.5 rounded border border-border text-sm text-muted hover:text-foreground"
+          className="lg:hidden shrink-0 grid h-9 w-9 place-items-center rounded border border-border text-muted hover:text-foreground hover:border-border-hover"
           aria-label={t("Toggle sidebar")}
         >
-          {t("Menu")}
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" aria-hidden="true" className="h-[18px] w-[18px]">
+            <path d="M3.5 6h13M3.5 10h13M3.5 14h13" />
+          </svg>
         </button>
-        <h1 className="truncate text-base font-semibold sm:text-lg">{t(title)}</h1>
+        <h1 className="truncate text-base font-semibold tracking-tight sm:text-lg">{t(title)}</h1>
       </div>
 
       {instagramAccountCount > 0 ? (
-        <p className="shrink-0 truncate text-sm text-muted">
+        <p className="inline-flex min-w-0 shrink items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-sm text-muted">
+          <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent shadow-[0_0_0_3px_rgb(31_186_86/0.18)]" />
+          <span className="truncate">
           {instagramAccountCount > 1
             ? t("{count} accounts", { count: instagramAccountCount })
             // Facebook Pages have a name, not a handle.
             : instagramUsername}
+          </span>
         </p>
       ) : (
         <a

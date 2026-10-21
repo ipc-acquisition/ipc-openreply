@@ -319,7 +319,7 @@ export default function CampaignsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t("Search campaigns by name, keyword, or message…")}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/40 focus:outline-none"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none"
           />
           <div className="inline-flex shrink-0 rounded-lg bg-surface p-1">
             {(["all", "active", "paused"] as const).map((s) => (

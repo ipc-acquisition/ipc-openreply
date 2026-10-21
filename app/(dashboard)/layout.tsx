@@ -6,10 +6,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
 import { ensureWorkspaceForUser } from "@/lib/workspace";
 
-export async function generateMetadata() {
-  const { t } = await getI18n();
-  return { title: t("OpenReply - Open source Instagram comment-to-DM automation") };
-}
+export const metadata = { title: "IPC Reply" };
 
 export default async function DashboardLayout({
   children,
