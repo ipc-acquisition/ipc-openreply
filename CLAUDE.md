@@ -8,9 +8,21 @@ Nossa missão é acrescentar três coisas, sem reescrever o que já funciona:
 
 1. **Moderação de comentários** (substitui o NapoleonCat): ocultar/apagar spam, golpe, perfis fake e ofensas, com lista de palavras + classificação por IA (Claude).
 2. **Respostas públicas com IA** (opcional por campanha): resposta curta e contextual no comentário, com fallback para templates.
-3. **Welcome drip** (substitui o ManyChat): quando a pessoa responde no Messenger, ela entra numa sequência de várias mensagens enviadas enquanto a janela de 24h estiver aberta.
+3. **Fluxos** (substitui o ManyChat): quando a pessoa manda DM para a Página, ela entra numa sequência de mensagens com CTAs, enviadas enquanto a janela de 24h estiver aberta, com métricas por mensagem.
 
 Uso: só Páginas do dono (Standard Access, sem App Review). Idioma da interface: pt-BR. **Sem follow-gating**: o dono não quer nada de "exigir que siga"; Páginas não têm status de seguidor e o worker ignora `requireFollow` para elas.
+
+## Estado atual (2026-10-21)
+
+| Peça | Estado | Onde |
+|---|---|---|
+| Comment-to-DM | Feito. Comentário → resposta pública + **uma** private reply com até 3 botões rastreados; opcionalmente inicia um fluxo quando a pessoa responde (`Automation.flowId`). Opening DM, follow-up e gatilho por DM saíram do construtor, mas o código continua. | `components/campaign-builder.tsx`, `app/api/automations`, worker |
+| Moderação (Fase 1, v1) | Feito só com **regras por palavra → ocultar**. Falta: heurísticas, IA, fila de revisão, dry-run, `DELETE`. | `lib/moderation/*`, `/moderation`, `app/api/moderation` |
+| Resposta pública com IA (Fase 2) | Não começou. | — |
+| Fluxos (Fase 3) | Feito o núcleo: gatilho por DM, passos com atraso e CTAs, janela de 24h, opt-out, retomada, recibos de leitura, cliques, métricas. Falta: takeover humano (inbox e echoes), selo na inbox, card no overview. | `lib/flows/*`, `/flows`, `app/api/flows` |
+| Módulo de IA | Não começou (`lib/ai/claude.ts`). | — |
+
+Em pt-BR a interface chama as campanhas de **"Comment-to-DM"** (chave `Campaigns`) e os fluxos de **"Fluxos"** (chave `Flows`).
 
 ## Como as Páginas entram no código (leia antes de qualquer coisa)
 
@@ -21,7 +33,9 @@ Uso: só Páginas do dono (Standard Access, sem App Review). Idioma da interface
 - **Webhook:** `app/api/webhook/route.ts` escolhe o provedor pelo `object` (`instagram` → `META`, `page` → `FACEBOOK_PAGE`). `lib/meta/webhook.ts` lê comentários do campo `feed` (`item: "comment"`, `verb: "add"`), e mensagens/postbacks/leituras de `entry.messaging` (PSID em `sender.id`). Echoes (`is_echo`) ainda são descartados.
 - **Quem comentou pode não ter id.** Sob Standard Access o `from` do comentário pode vir vazio. O parser não descarta o evento: `commenterId` recebe a sentinela `comment:<comment_id>` (`unknownCommenterId`/`isUnknownCommenter`). A fonte confiável do PSID é o `recipient_id` da resposta da private reply, gravado em **`DmLog.recipientId`**. Postbacks, leituras, mensagens recebidas e o drip localizam a pessoa por `commenterId` OU `recipientId`.
 - **Token de Página rejeitado (`TokenExpiredError`):** `lib/facebook/page-token.ts` regenera pelo usuário do sistema (`/me/accounts`) e a tentativa seguinte do job usa o token novo.
-- **Worker:** `lib/queue/dm-worker.ts` (`processComment`, `processMessage`, `processPostback`, `processFollowUp`). É aqui que quase tudo vai se encaixar.
+- **Worker:** `lib/queue/dm-worker.ts` (`processComment`, `processMessage`, `processPostback`, `processFollowUp`) e o job `process-flow-step` (`lib/flows/engine.ts`). Ordem em `processComment`: **moderação** (`moderateComment`) → campanhas. Em `processMessage` e `processPostback` o motor de fluxos (`handleInboundMessage`/`handleInboundPostback`) roda antes e nunca derruba a resposta da campanha.
+- **Moderação:** `lib/moderation/normalize.ts` (minúsculas, sem acentos, letras repetidas colapsadas, `0→o 1→i 3→e 4→a 5→s 7→t @→a $→s`) e `lib/moderation/engine.ts` (claim em `ModerationLog` por `commentId` antes de `setPageCommentHidden`; comentário que bate numa regra não recebe DM nem resposta pública, mesmo que o hide falhe; `UNDONE` libera).
+- **Fluxos:** `lib/flows/window.ts` (janela de 24h com margem de 15 min, palavras de saída, gatilho, linha do tempo), `lib/flows/engine.ts` (Contact com `lastInboundAt`, inscrição única por pessoa e fluxo, job atrasado por passo com revalidação total, claim em `FlowSendLog`, rate limiter, `messaging_type: RESPONSE`, fallback inline para botões, `SKIPPED_WINDOW` sem chamar a Meta, `markFlowReads` pelo watermark), `lib/flows/save.ts` (validação e gravação preservando ids/slugs) e `lib/flows/metrics.ts` (cliques únicos por pessoa, abertura e CTR). `/r/{slug}` resolve `TrackedLink` e `FlowButton`.
 - **Polling:** `lib/polling/comment-reconciler.ts` (aceita comentário de Página sem `from`).
 - `docs/delivery-retries.md` – **padrão obrigatório**: reivindicar (claim) a entrega no banco ANTES de chamar a Meta. Erro de rede/desconhecido mantém o claim. Só rejeição explícita da Meta libera o claim.
 - `lib/utils/rate-limiter.ts` – limite por conta. Todo envio novo passa por ele.
@@ -35,7 +49,8 @@ Regras de trabalho:
 - Migrações: `prisma migrate dev --create-only --name <descritivo>`, revise o SQL e só então aplique. O `.env` local aponta para o banco de produção (Supabase) e o `vercel-build` roda `migrate deploy`. Nunca edite migrações já existentes. Mudanças só aditivas nos modelos atuais.
 - Não remova o provider Zernio, o provider META nem workspaces; apenas não os use.
 - Ao terminar cada tarefa: `npm run typecheck && npm run lint && npm test`. Escreva testes Vitest para a lógica nova (classificador, cálculo de janela, enrollment, idempotência). Módulos de lógica não podem importar `lib/workspace-access`/`lib/auth` (puxam `next-auth`, que não carrega no Vitest); deixe isso para os handlers de rota.
-- Trabalhe uma fase por vez, com commits pequenos. Em cada fase, proponha o plano antes de implementar. **Não faça push sem confirmação do dono**: Railway e Vercel publicam a cada push no `main`.
+- Trabalhe uma fase por vez, com commits pequenos. Em cada fase, proponha o plano antes de implementar. **Não faça push sem confirmação do dono**, e sempre `git pull --rebase origin main` antes de qualquer push (o dono trabalha em paralelo em outros worktrees): Railway e Vercel publicam a cada push no `main`.
+- Textos para o usuário final (confirmação de opt-out, placeholders de mensagem) são conteúdo em pt-BR fixo no código, não chaves de i18n.
 - `git config user.name/user.email` é local a este repositório. O arquivo `saveweb2zip-*.zip` está no `.gitignore` e não pode ir para o repositório, que é público.
 
 ## Regras da Meta que o código precisa respeitar (não negociáveis)
@@ -71,6 +86,8 @@ Web na Vercel (`retention-meta.publisherscompany.com`), Postgres no Supabase (se
 Critério de aceite, com uma Página conectada pelo painel: uma conta sem papel no app comenta a palavra-chave e recebe a private reply em segundos; o `DmLog` fica `SENT` com `recipientId` preenchido; a resposta pública aparece no comentário; quando a pessoa responde no Messenger, o follow-up chega; comentários da própria Página são ignorados.
 
 ## Fase 1 — Moderação de comentários
+
+**Já existe a v1 (regras por palavra → ocultar)** com `ModerationRule` (muitas por Página, até 5.000 palavras cada, palavra inteira opcional e desligada por padrão) e `ModerationLog` (`commentId` único, `action HIDE|DELETE`, `actionStatus PENDING|DONE|FAILED|UNDONE`). O que segue é o alvo completo; ao evoluir, **acrescente campos aos modelos existentes** em vez de criar outros com o mesmo papel (por exemplo, `ModerationSettings` por Página para dry-run/IA, e `category`, `confidence`, `source` em `ModerationLog`).
 
 ### Modelos (rascunho; refine)
 
@@ -152,106 +169,33 @@ Critério de aceite: em dry-run, comentários de teste com spam, golpe, ofensa e
 
 Critério de aceite: dez comentários diferentes geram dez respostas diferentes e coerentes; com a IA desligada no `.env`, as respostas voltam para templates sem erro.
 
-## Fase 3 — Welcome drip
+## Fase 3 — Fluxos (feito o núcleo)
 
 ### Conceito
 
-A pessoa comenta → recebe a private reply (fluxo atual) → **quando ela responde no Messenger** (mensagem ou toque em botão, ver "A confirmar"), entra numa sequência. Cada passo tem um atraso relativo ao envio do passo anterior. Antes de cada envio, conferimos se a janela de 24h ainda está aberta.
+Qualquer DM recebida pela Página (depois de uma private reply ou direto) entra nos fluxos cujo gatilho casa (padrão: qualquer mensagem; palavras só filtram) e no fluxo ligado ao Comment-to-DM cuja private reply a pessoa recebeu nos últimos 7 dias. Cada passo tem atraso relativo ao anterior, texto com `{username}` e até 3 botões (texto livre + URL rastreada). Antes de cada envio, revalidamos tudo e conferimos a janela de 24h. Toque em botão de Comment-to-DM também inscreve (ver "A confirmar": se postback não abrir a janela, o primeiro passo cai em `SKIPPED_WINDOW` até a pessoa escrever).
 
-### Modelos (rascunho; refine)
+### Modelos (existem; mudanças só aditivas)
 
-```prisma
-model Contact {
-  id                 String   @id @default(cuid())
-  workspaceId        String
-  instagramAccountId String                       // a Página
-  igsid              String                       // PSID da pessoa nesta Página
-  username           String?                      // nome exibido
-  firstSeenAt        DateTime @default(now())
-  lastInboundAt      DateTime?                    // abre/renova a janela de 24h
-  optedOutAt         DateTime?
-  humanTakeoverUntil DateTime?
-  @@unique([instagramAccountId, igsid])
-}
+`Contact` (Página × PSID, `name`, `lastInboundAt`, `optedOutAt`, `humanTakeoverUntil`), `Flow` (`triggerAnyMessage`, `triggerKeywords`, `wholeWordMatch`, `stopKeywords`, `resumeOnReply`), `FlowStep` (`position`, `delayMinutes`, `message`), `FlowButton` (`title`, `url`, `slug` único), `FlowEnrollment` (único por fluxo e contato, `automationId` de origem, `status`, `nextStepPosition`, `nextRunAt`), `FlowSendLog` (único por inscrição e passo: `CLAIMED|SENT|FAILED|SKIPPED_WINDOW|SKIPPED_TAKEOVER|SKIPPED_OPTOUT`, `mid`, `sentAt`, `readAt`), `FlowClick` (`recipientHash`, `ipHash`). `Automation.flowId` liga o Comment-to-DM ao fluxo.
 
-model DripSequence {
-  id                 String   @id @default(cuid())
-  workspaceId        String
-  instagramAccountId String
-  name               String
-  isActive           Boolean  @default(true)
-  stopKeywords       String[] @default(["parar", "sair", "stop", "cancelar"])
-  resumeOnReply      Boolean  @default(false)    // se a janela fechou, retomar quando a pessoa escrever de novo
-  steps              DripStep[]
-}
+### Regras implementadas
 
-model DripStep {
-  id           String @id @default(cuid())
-  sequenceId   String
-  position     Int
-  delayMinutes Int                                // relativo ao passo anterior (ou à entrada, no passo 0)
-  message      String                             // suporta {username}
-  buttons      Json?                              // até 2 links rastreados, reaproveitando TrackedLink
-  @@unique([sequenceId, position])
-}
+- **Janela**: `lastInboundAt + 24h − 15min`. Fechada → `SKIPPED_WINDOW`, inscrição `PAUSED_WINDOW`, sem chamada à Meta. Rejeição da própria Meta por janela (`code=10`) tem o mesmo efeito. Com `resumeOnReply`, a próxima mensagem reativa e **reivindica de novo** o passo pulado (o claim aceita re-claim só de `SKIPPED_*`).
+- **Opt-out** por Página: palavra inteira de `stopKeywords` encerra todas as inscrições, grava `optedOutAt` e manda uma confirmação curta.
+- **Agendamento**: `process-flow-step` com `jobId` `flow_{enrollment}_{step}_{runAt}` (o horário entra no id porque o mesmo passo pode ser agendado de novo na retomada; a idempotência fica no claim).
+- **Falha não confirmada** registra `FAILED` e **avança** para o próximo passo (nunca reenvia o mesmo).
+- **Métricas**: enviadas = `SENT`; abertas = `readAt` (watermark de `message_reads`); cliques únicos por pessoa (`?r=`), por botão e por passo; CTR = cliques ÷ enviadas.
+- **Uma inscrição por pessoa por fluxo**, mesmo depois de concluída.
 
-model DripEnrollment {
-  id               String   @id @default(cuid())
-  contactId        String
-  sequenceId       String
-  automationId     String?
-  status           DripStatus @default(ACTIVE)
-  nextStepPosition Int      @default(0)
-  nextRunAt        DateTime?
-  enrolledAt       DateTime @default(now())
-  endedAt          DateTime?
-  @@unique([contactId, sequenceId])               // cada pessoa entra uma vez por sequência
-}
+### Falta (próximas rodadas)
 
-model DripSendLog {
-  id           String @id @default(cuid())
-  enrollmentId String
-  stepId       String
-  status       DripSendStatus                     // CLAIMED SENT FAILED SKIPPED_WINDOW SKIPPED_TAKEOVER SKIPPED_OPTOUT
-  mid          String?
-  error        String?
-  createdAt    DateTime @default(now())
-  sentAt       DateTime?
-  @@unique([enrollmentId, stepId])                // idempotência por passo
-}
+- **Takeover humano**: envio pela inbox do painel grava `humanTakeoverUntil = agora + 24h`; processar echoes (`is_echo`, campo `message_echoes` já inscrito) — echo cujo `mid` não foi enviado por nós (criar `OutboundMessage` com `mid`, `source`) é humano → mesmo efeito. O worker já pula passos com `SKIPPED_TAKEOVER` e pausa em `PAUSED_TAKEOVER`.
+- Inbox: selo "fluxo ativo / pausado" e botão "pausar automação para este contato" (`STOPPED_MANUAL`).
+- Overview: inscritos ativos, conclusão por fluxo, motivos de parada.
+- Comentários de anúncios no seletor de posts e no polling via `GET /{page-id}/ads_posts` (exige `pages_manage_ads` + `ads_management` e a conta de anúncios atribuída ao usuário do sistema).
 
-model OutboundMessage {                            // tudo que o sistema envia, para distinguir echoes humanos
-  mid                String   @id
-  instagramAccountId String
-  recipientId        String
-  source             String                       // PRIVATE_REPLY | DRIP | INBOX | FOLLOW_UP | ...
-  createdAt          DateTime @default(now())
-}
-
-enum DripStatus { ACTIVE PAUSED_WINDOW PAUSED_TAKEOVER COMPLETED STOPPED_OPTOUT STOPPED_MANUAL }
-```
-
-E em `Automation`: `dripSequenceId String?`.
-
-### Regras
-
-- **Entrada**: em `processMessage` e `processPostback`, faça upsert do `Contact` (pelo PSID) e atualize `lastInboundAt`. Se houver `DmLog` `SENT` para esse PSID (`recipientId`, ou `commenterId` em contas Instagram) nos últimos 7 dias, de uma automação com `dripSequenceId` ativo, e ainda não houver enrollment → crie e agende o passo 0.
-- **Opt-out**: mensagem que bate com `stopKeywords` → `STOPPED_OPTOUT`, grava `optedOutAt`, envia uma confirmação curta (está dentro da janela, pois a pessoa acabou de escrever).
-- **Agendamento**: job BullMQ atrasado com `jobId` `drip_{enrollmentId}_{stepId}`. No processamento, revalide tudo: status da sequência e do enrollment, opt-out, takeover e janela.
-- **Janela**: `windowEnd = lastInboundAt + 24h`. Se `agora > windowEnd - 15min` → `SKIPPED_WINDOW`, enrollment `PAUSED_WINDOW`, nenhuma chamada à Meta. Se `resumeOnReply`, uma nova mensagem da pessoa reativa a partir do passo pendente.
-- **Takeover humano**: envio pela inbox do painel grava `humanTakeoverUntil = agora + 24h`. Passe também a processar echoes (`is_echo`, campo `message_echoes` já inscrito) num caminho separado: echo cujo `mid` não está em `OutboundMessage` foi enviado por um humano pela Caixa de Entrada da Meta → mesmo efeito. Passos que caírem no takeover → `SKIPPED_TAKEOVER`, enrollment `PAUSED_TAKEOVER`.
-- **Envio**: claim em `DripSendLog` antes de chamar a Meta (mesmo padrão do `docs/delivery-retries.md`), rate limiter da conta, `sendPageMessage*` com `messaging_type: RESPONSE`, grave o `mid` em `OutboundMessage`.
-- O `followUp` único que já existe continua funcionando; na interface, sugira o drip como substituto.
-
-### Painel
-
-- `/sequences`: lista e editor de sequência como lista ordenada de passos (mensagem, atraso, botões). Pré-visualização em linha do tempo com a marca das 24h e aviso quando a soma dos atrasos passar de ~23h ("estes passos só serão enviados se a pessoa interagir de novo").
-- No construtor de campanha: seletor "sequência após resposta".
-- Na inbox: selo "drip ativo / pausado" por conversa e botão "pausar automação para este contato".
-- Overview: inscritos ativos, taxa de conclusão por sequência, motivos de parada.
-- Editor visual estilo canvas fica fora do escopo por enquanto.
-
-Critério de aceite: com uma sequência de 4 passos (0min, 10min, 2h, 20h), uma conta de teste que responde recebe todos; uma que escreve "parar" recebe só a confirmação; resposta manual pela inbox pausa a sequência; um passo forçado para depois de 24h é pulado com `SKIPPED_WINDOW` e nenhuma chamada à Meta.
+Critério de aceite: com um fluxo de 4 passos (0min, 10min, 2h, 20h), uma conta de teste que manda DM recebe todos e vê abertas/cliques no relatório; uma que escreve "parar" recebe só a confirmação; um passo forçado para depois de 24h fica `SKIPPED_WINDOW` sem chamada à Meta e sai quando a pessoa escreve de novo.
 
 ## Variáveis de ambiente
 
