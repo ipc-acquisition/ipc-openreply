@@ -1,3 +1,4 @@
+import type { InstagramProvider } from "@/app/generated/prisma/client";
 import { decryptToken } from "@/lib/meta/oauth";
 import { prisma } from "@/lib/db/client";
 
@@ -12,7 +13,7 @@ export type InstagramContext =
     };
 
 export type ProviderAccount = {
-  provider: "META" | "ZERNIO";
+  provider: InstagramProvider;
   workspaceId: string;
   zernioAccountId: string | null;
   instagramId: string;
@@ -31,6 +32,10 @@ export async function createInstagramContext(
   account: ProviderAccount,
   operationId?: string
 ): Promise<InstagramContext> {
+  // Facebook Pages get their own context in a later step; until then, fail
+  // loudly rather than sending Page tokens through the Instagram client.
+  if (account.provider === "FACEBOOK_PAGE")
+    throw new Error("Facebook Page provider is not supported yet");
   if (account.provider !== "ZERNIO")
     return { provider: "META", accessToken: decryptToken(account.accessToken) };
   if (!account.zernioAccountId)

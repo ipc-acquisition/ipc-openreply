@@ -43,3 +43,6 @@ next-env.d.ts
 
 /app/generated/prisma
 .gstack/
+
+# Local-only assets (public repo)
+saveweb2zip-*.zip

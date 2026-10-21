@@ -76,6 +76,7 @@ model Workspace {
   dmsSentThisPeriod Int      @default(0)
 
   zernioConnection  ZernioConnection?
+  facebookPageConnection FacebookPageConnection?
   members           WorkspaceMember[]
   invitations       WorkspaceInvitation[]
   instagramAccounts InstagramAccount[]
@@ -228,6 +229,10 @@ model DmLog {
 
   commenterId   String
   commenterName String?
+  // Page-scoped ID (PSID) returned by the private reply. On Facebook Pages the
+  // comment author's id (when present) is not the Messenger id, so inbound
+  // messages, postbacks and reads are matched to this field, not commenterId.
+  recipientId   String?
   commentText   String
   commentId     String
   matchedKeyword String?
@@ -254,6 +259,7 @@ model DmLog {
   @@unique([automationId, commentId])
   @@index([workspaceId])
   @@index([automationId])
+  @@index([automationId, recipientId])
   @@index([instagramAccountId])
   @@index([status])
 }
@@ -401,6 +407,7 @@ enum OperationalEventLevel {
 enum InstagramProvider {
   META
   ZERNIO
+  FACEBOOK_PAGE
 }
 
 model ZernioConnection {
@@ -412,6 +419,20 @@ model ZernioConnection {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// Facebook Pages are connected through a Business Manager system user: the
+// owner pastes its token once, and each assigned Page becomes an
+// InstagramAccount with provider FACEBOOK_PAGE (instagramId = Page id,
+// accessToken = encrypted Page token). The system user token is kept here,
+// encrypted, so Page tokens can be regenerated via /me/accounts.
+model FacebookPageConnection {
+  workspaceId     String   @id
+  systemUserToken String
+  systemUserId    String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 // Claims persist independently of BullMQ retention so old taps never resend.

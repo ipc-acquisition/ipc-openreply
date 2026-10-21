@@ -25,6 +25,7 @@
  * filter on the account to widen results.
  */
 
+import type { InstagramProvider } from "@/app/generated/prisma/client";
 import { MAX_COMMENT_SEND_ATTEMPTS } from "@/lib/queue/comment-delivery";
 import { hasLegacyUnconfirmedDelivery } from "@/lib/instagram/delivery-errors";
 import { prisma } from "@/lib/db/client";
@@ -135,7 +136,7 @@ async function sweepCampaign({
       instagramId: string;
       username: string;
       accessToken: string;
-      provider: "META" | "ZERNIO";
+      provider: InstagramProvider;
       workspaceId: string;
       zernioAccountId: string | null;
     };

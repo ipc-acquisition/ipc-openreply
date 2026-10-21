@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { InstagramProvider } from "@/app/generated/prisma/client";
 import { getCurrentWorkspaceId } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
 import { getWorkspaceInstagramAccount } from "@/lib/instagram-accounts";
@@ -87,7 +88,7 @@ export interface OverviewResponse {
     interactions: number;
   };
   posts: OverviewPost[];
-  provider?: "META" | "ZERNIO";
+  provider?: InstagramProvider;
   limitations?: string[];
 }
 
