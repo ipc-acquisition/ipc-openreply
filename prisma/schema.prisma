@@ -332,6 +332,9 @@ model WebhookEvent {
   workspaceId String?
   object      String?
   payload     Json
+  // Which connection the payload came through. Needed to replay it: Zernio
+  // payloads reuse the "instagram" object. Null on rows written before.
+  provider    InstagramProvider?
   status      WebhookStatus @default(PENDING)
   errorMessage String?
   createdAt   DateTime      @default(now())
@@ -388,6 +391,9 @@ enum WebhookStatus {
   PENDING
   PROCESSED
   FAILED
+  // Persisted but not handed to Redis (outage or timeout). The worker replays
+  // these; see replayUnqueuedWebhookEvents.
+  NOT_ENQUEUED
 }
 
 enum OperationalEventSource {
