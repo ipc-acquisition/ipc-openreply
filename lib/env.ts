@@ -80,8 +80,9 @@ export async function isPublicDemoHost(): Promise<boolean> {
  * A self-hosted instance on a public domain is open to signup: the email
  * provider creates an account for whoever asks for a magic link, and that
  * account gets its own workspace. ALLOWED_EMAILS closes it to a comma-separated
- * list of addresses. Left unset, sign-in behaves exactly as before, so an
- * existing deployment is unaffected.
+ * list of addresses. An entry starting with "@" (for example "@example.com")
+ * admits every address on exactly that domain. Left unset, sign-in behaves
+ * exactly as before, so an existing deployment is unaffected.
  */
 export function isEmailAllowedToSignIn(
   email: string | null | undefined
@@ -93,7 +94,18 @@ export function isEmailAllowedToSignIn(
 
   if (allowed.length === 0) return true;
   if (!email) return false;
-  return allowed.includes(email.toLowerCase());
+
+  const address = email.trim().toLowerCase();
+  // Compare the whole part after the last "@", so "@example.com" never admits
+  // a lookalike ("user@notexample.com") or a subdomain ("user@mail.example.com").
+  const at = address.lastIndexOf("@");
+  const domain = at > 0 ? address.slice(at + 1) : "";
+
+  return allowed.some((entry) =>
+    entry.startsWith("@")
+      ? entry.length > 1 && domain === entry.slice(1)
+      : entry === address
+  );
 }
 
 export const serverEnvSchema = z.object({

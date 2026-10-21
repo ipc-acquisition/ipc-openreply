@@ -59,4 +59,26 @@ describe("sign-in allowlist", () => {
     expect(isEmailAllowedToSignIn(undefined)).toBe(false);
     expect(isEmailAllowedToSignIn("")).toBe(false);
   });
+
+  it("allows every address on a domain listed as @domain", () => {
+    vi.stubEnv("ALLOWED_EMAILS", "owner@other.com, @Example.com");
+    expect(isEmailAllowedToSignIn("anyone@example.com")).toBe(true);
+    expect(isEmailAllowedToSignIn(" Team@EXAMPLE.com ")).toBe(true);
+    expect(isEmailAllowedToSignIn("owner@other.com")).toBe(true);
+    expect(isEmailAllowedToSignIn("stranger@other.com")).toBe(false);
+  });
+
+  it("does not let @domain admit lookalikes, subdomains, or bare domains", () => {
+    vi.stubEnv("ALLOWED_EMAILS", "@example.com");
+    expect(isEmailAllowedToSignIn("user@notexample.com")).toBe(false);
+    expect(isEmailAllowedToSignIn("user@mail.example.com")).toBe(false);
+    expect(isEmailAllowedToSignIn("user@example.com.evil.net")).toBe(false);
+    expect(isEmailAllowedToSignIn("example.com")).toBe(false);
+    expect(isEmailAllowedToSignIn("@example.com")).toBe(false);
+  });
+
+  it("ignores a lone @ entry instead of admitting everyone", () => {
+    vi.stubEnv("ALLOWED_EMAILS", "@");
+    expect(isEmailAllowedToSignIn("anyone@example.com")).toBe(false);
+  });
 });
