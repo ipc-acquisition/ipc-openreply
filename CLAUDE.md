@@ -1,5 +1,9 @@
 @AGENTS.md
 
+> **Mudança de escopo (2026-10-21): o produto agora é só para Páginas do Facebook, não Instagram.**
+> Antes de qualquer código, leia `docs/plano-facebook-pages.md`, que traz as decisões, o resultado do teste na Meta, o estado da infraestrutura e as etapas de implementação.
+> Onde este arquivo falar de Instagram (Instagram Login, `graph.instagram.com`, permissões `instagram_business_*`), vale o plano. As regras de trabalho, o padrão de claim, o rate limiter e o módulo de IA continuam valendo. Este arquivo será reescrito na etapa 8 do plano.
+
 # Projeto: substituto próprio de NapoleonCat + ManyChat (fork do OpenReply)
 
 Este repositório é um fork do OpenReply (MIT). Ele já resolve comentário → DM pela API oficial do Instagram. Nossa missão é acrescentar três coisas, sem reescrever o que já funciona:
