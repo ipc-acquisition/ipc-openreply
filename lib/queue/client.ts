@@ -77,15 +77,29 @@ export interface ProcessMessageJob {
   senderId: string;
 }
 
+// One step of a Messenger flow, enqueued with the step's delay. The worker
+// revalidates everything (flow active, enrollment active, opt-out, 24h window)
+// when it runs, because a lot can change while a delayed job waits.
+export interface ProcessFlowStepJob {
+  accountConnectionId?: string;
+  instagramAccountId: string;
+  enrollmentId: string;
+  stepId: string;
+  stepPosition: number;
+  requeueAttempt?: number;
+}
+
 export type DmQueueJob =
   | ProcessCommentJob
   | ProcessPostbackJob
   | ProcessFollowUpJob
-  | ProcessMessageJob;
+  | ProcessMessageJob
+  | ProcessFlowStepJob;
 
 export const POSTBACK_JOB_NAME = "process-postback";
 export const FOLLOWUP_JOB_NAME = "process-followup";
 export const MESSAGE_JOB_NAME = "process-message";
+export const FLOW_STEP_JOB_NAME = "process-flow-step";
 
 const DM_QUEUE_NAME = "dm-processing";
 

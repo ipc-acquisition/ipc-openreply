@@ -8,6 +8,12 @@ const { mockPrisma } = vi.hoisted(() => ({
     linkClick: {
       create: vi.fn(),
     },
+    flowButton: {
+      findUnique: vi.fn(),
+    },
+    flowClick: {
+      create: vi.fn(),
+    },
   },
 }));
 
@@ -105,6 +111,34 @@ describe("tracked link redirect route", () => {
 
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe("https://manychat-alternative.com/");
+    expect(mockPrisma.linkClick.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("flow button redirect", () => {
+  it("logs a flow click with the recipient token and redirects to the CTA URL", async () => {
+    mockPrisma.trackedLink.findUnique.mockResolvedValue(null);
+    mockPrisma.flowButton.findUnique.mockResolvedValue({
+      id: "btn_1",
+      url: "https://example.com/oferta",
+      step: { flow: { workspaceId: "workspace_123" } },
+    });
+    mockPrisma.flowClick.create.mockResolvedValue({});
+
+    const response = await GET(
+      new Request("https://manychat-alternative.com/r/flowslug?r=abcdefghijklmnopqrstuv") as Parameters<typeof GET>[0],
+      { params: Promise.resolve({ slug: "flowslug" }) }
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("https://example.com/oferta");
+    expect(mockPrisma.flowClick.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        workspaceId: "workspace_123",
+        buttonId: "btn_1",
+        recipientHash: "abcdefghijklmnopqrstuv",
+      }),
+    });
     expect(mockPrisma.linkClick.create).not.toHaveBeenCalled();
   });
 });

@@ -119,10 +119,17 @@ vi.mock("@/lib/queue/client", () => ({
   POSTBACK_JOB_NAME: "process-postback",
   FOLLOWUP_JOB_NAME: "process-followup",
   MESSAGE_JOB_NAME: "process-message",
+  FLOW_STEP_JOB_NAME: "process-flow-step",
 }));
 
 const mockRefreshPageToken = vi.hoisted(() => vi.fn());
 const mockModerateComment = vi.hoisted(() => vi.fn());
+const mockFlows = vi.hoisted(() => ({
+  handleInboundMessage: vi.fn(),
+  handleInboundPostback: vi.fn(),
+  processFlowStep: vi.fn(),
+}));
+vi.mock("@/lib/flows/engine", () => mockFlows);
 vi.mock("@/lib/moderation/engine", () => ({
   moderateComment: mockModerateComment,
 }));

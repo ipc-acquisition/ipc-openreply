@@ -10,8 +10,17 @@ type RedirectRouteProps = {
   params: Promise<{ slug: string }>;
 };
 
+/**
+ * Tracked redirect for both campaign links (TrackedLink) and flow CTA buttons
+ * (FlowButton). The two keep separate slug spaces and separate click tables;
+ * the `?r=` recipient token makes clicks count once per person in either.
+ */
 export async function GET(request: NextRequest, { params }: RedirectRouteProps) {
   const { slug } = await params;
+  const recipientHash = parseRecipientToken(new URL(request.url).searchParams.get("r"));
+  const ipHash = hashClickIp(getRequestIp(request));
+  const userAgent = request.headers.get("user-agent");
+
   const trackedLink = await prisma.trackedLink.findUnique({
     where: { slug },
     select: {
@@ -27,24 +36,43 @@ export async function GET(request: NextRequest, { params }: RedirectRouteProps) 
     },
   });
 
-  if (!trackedLink) {
-    return NextResponse.redirect(new URL("/", request.url), { status: 302 });
+  if (trackedLink) {
+    await prisma.linkClick.create({
+      data: {
+        workspaceId: trackedLink.workspaceId,
+        automationId: trackedLink.automationId,
+        instagramAccountId: trackedLink.automation.instagramAccountId,
+        trackedLinkId: trackedLink.id,
+        ipHash,
+        recipientHash,
+        userAgent,
+        referrer: request.headers.get("referer"),
+      },
+    });
+    return NextResponse.redirect(trackedLink.destinationUrl, { status: 302 });
   }
 
-  await prisma.linkClick.create({
-    data: {
-      workspaceId: trackedLink.workspaceId,
-      automationId: trackedLink.automationId,
-      instagramAccountId: trackedLink.automation.instagramAccountId,
-      trackedLinkId: trackedLink.id,
-      ipHash: hashClickIp(getRequestIp(request)),
-      recipientHash: parseRecipientToken(
-        new URL(request.url).searchParams.get("r")
-      ),
-      userAgent: request.headers.get("user-agent"),
-      referrer: request.headers.get("referer"),
+  const flowButton = await prisma.flowButton.findUnique({
+    where: { slug },
+    select: {
+      id: true,
+      url: true,
+      step: { select: { flow: { select: { workspaceId: true } } } },
     },
   });
 
-  return NextResponse.redirect(trackedLink.destinationUrl, { status: 302 });
+  if (flowButton) {
+    await prisma.flowClick.create({
+      data: {
+        workspaceId: flowButton.step.flow.workspaceId,
+        buttonId: flowButton.id,
+        recipientHash,
+        ipHash,
+        userAgent,
+      },
+    });
+    return NextResponse.redirect(flowButton.url, { status: 302 });
+  }
+
+  return NextResponse.redirect(new URL("/", request.url), { status: 302 });
 }

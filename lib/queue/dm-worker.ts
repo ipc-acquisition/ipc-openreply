@@ -13,15 +13,22 @@ import {
   MESSAGE_JOB_NAME,
   POSTBACK_JOB_NAME,
   FOLLOWUP_JOB_NAME,
+  FLOW_STEP_JOB_NAME,
   type DmQueueJob,
   type ProcessCommentJob,
   type ProcessMessageJob,
   type ProcessPostbackJob,
   type ProcessFollowUpJob,
+  type ProcessFlowStepJob,
 } from "./client";
 import { prisma } from "@/lib/db/client";
 import { refreshFacebookPageToken } from "@/lib/facebook/page-token";
 import { moderateComment } from "@/lib/moderation/engine";
+import {
+  handleInboundMessage,
+  handleInboundPostback,
+  processFlowStep,
+} from "@/lib/flows/engine";
 import {
   MetaApiError,
   RateLimitError,
@@ -948,6 +955,21 @@ async function processPostback(job: Job<ProcessPostbackJob>): Promise<void> {
     return;
   }
 
+  // A real tap (not the read fallback) is an interaction: it reopens the 24h
+  // window and starts the campaign's flow, if one is attached.
+  if (!fallback) {
+    try {
+      await handleInboundPostback({
+        accountConnectionId: job.data.accountConnectionId,
+        instagramAccountId,
+        psid: userId,
+        automationId: automation.id,
+      });
+    } catch (error) {
+      console.log("[Flows] Inbound postback handling failed:", formatError(error));
+    }
+  }
+
   // Duplicate sends are enabled: every button tap re-sends the reveal
   // instead of only firing once per person.
   const dedupeId = `reveal:${userId}`;
@@ -1320,6 +1342,20 @@ async function processFollowUp(job: Job<ProcessFollowUpJob>): Promise<void> {
 async function processMessage(job: Job<ProcessMessageJob>): Promise<void> {
   const { instagramAccountId, messageId, messageText, senderId } = job.data;
 
+  // Flows run on every inbound DM, independently of campaign replies: the
+  // message reopens the person's 24h window and may enroll or resume them.
+  // A failure here must not cost the campaign reply below.
+  try {
+    await handleInboundMessage({
+      accountConnectionId: job.data.accountConnectionId,
+      instagramAccountId,
+      psid: senderId,
+      text: messageText,
+    });
+  } catch (error) {
+    console.log("[Flows] Inbound message handling failed:", formatError(error));
+  }
+
   const automations = await prisma.automation.findMany({
     where: {
       ...connectionScope(job.data),
@@ -1625,6 +1661,9 @@ async function dispatchJob(job: Job<DmQueueJob>): Promise<void> {
   }
   if (job.name === MESSAGE_JOB_NAME) {
     return processMessage(job as Job<ProcessMessageJob>);
+  }
+  if (job.name === FLOW_STEP_JOB_NAME) {
+    return processFlowStep(job as Job<ProcessFlowStepJob>);
   }
   return processComment(job as Job<ProcessCommentJob>);
 }

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/client';
+import { markFlowReads } from '@/lib/flows/engine';
 import {
   getDMQueue,
   getWebhookQueue,
@@ -224,6 +225,20 @@ async function enqueueWebhookJobs({ eventId, payload, accountMap, queue }: {
   const readEvents = parseReadEvents(payload);
 
   for (const event of readEvents) {
+    // Flow "opened" numbers: everything sent before the watermark was read.
+    if (typeof event.watermark === "number") {
+      try {
+        await markFlowReads({
+          accountConnectionId: accountMap.get(event.instagramAccountId)?.id,
+          instagramAccountId: event.instagramAccountId,
+          psid: event.userId,
+          watermark: event.watermark,
+        });
+      } catch (error) {
+        console.log("[Flows] Read receipt handling failed:", error instanceof Error ? error.message : error);
+      }
+    }
+
     const openingLogs = await prisma.dmLog.findMany({
       where: {
         // Reads carry the person's messaging id; on Pages that is the PSID

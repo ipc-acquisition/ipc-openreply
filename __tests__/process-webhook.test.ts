@@ -10,6 +10,8 @@ vi.mock("@/lib/queue/client", () => ({
   MESSAGE_JOB_NAME: "process-message",
   POSTBACK_JOB_NAME: "process-postback",
 }));
+const markFlowReads = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/flows/engine", () => ({ markFlowReads }));
 vi.mock("@/lib/db/client", () => ({
   prisma: {
     instagramAccount: { findMany: vi.fn() },
