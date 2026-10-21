@@ -12,7 +12,7 @@ export default function LanguageSwitcher() {
   return (
     <div className="space-y-1">
       <label className="inline-flex items-center gap-2 text-sm text-muted">
-        <span>{t("Language")}</span>
+        <span className="sr-only sm:not-sr-only">{t("Language")}</span>
         <select
           value={locale}
           disabled={pending}
