@@ -139,7 +139,9 @@ export async function processInstagramWebhook({ payload: incoming, provider, wor
     for (const event of readEvents) {
       const openingLogs = await prisma.dmLog.findMany({
         where: {
-          commenterId: event.userId,
+          // Reads carry the person's messaging id; on Pages that is the PSID
+          // stored as recipientId, not the comment author's id.
+          OR: [{ commenterId: event.userId }, { recipientId: event.userId }],
           status: "SENT",
           automation: {
             isActive: true,

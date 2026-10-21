@@ -41,6 +41,7 @@ import {
   type InstagramContext,
 } from "@/lib/instagram/provider";
 import { matchKeywords } from "@/lib/utils/keyword-matcher";
+import { unknownCommenterId } from "@/lib/meta/webhook";
 
 // Only consider comments from the last few days — older ones are outside
 // Instagram's private-reply window anyway, so a DM to them would just fail.
@@ -209,7 +210,11 @@ async function sweepCampaign({
     // keyword, and (c) have no reply from the account owner yet.
     const needsAction = comments.filter((c) => {
       const authorId = c.from?.id;
-      if (!authorId || authorId === account.instagramId) return false;
+      if (authorId === account.instagramId) return false;
+      // Page comments may carry no author (Standard Access hides people
+      // without a role on the app); they are still actionable, since the
+      // private reply targets the comment id. Instagram always sends one.
+      if (!authorId && account.provider !== "FACEBOOK_PAGE") return false;
 
       const matched = automation.matchAnyWord
         ? true
@@ -275,7 +280,7 @@ async function sweepCampaign({
         accountConnectionId: account.id,
         commentId: c.id,
         commentText: c.text ?? "",
-        commenterId: c.from!.id,
+        commenterId: c.from?.id ?? unknownCommenterId(c.id),
         commenterName: c.from?.username,
         mediaId,
         // When the sweep is looking at an ad, the campaign is bound to the post

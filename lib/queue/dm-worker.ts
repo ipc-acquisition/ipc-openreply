@@ -20,6 +20,7 @@ import {
   type ProcessFollowUpJob,
 } from "./client";
 import { prisma } from "@/lib/db/client";
+import { refreshFacebookPageToken } from "@/lib/facebook/page-token";
 import {
   MetaApiError,
   RateLimitError,
@@ -668,6 +669,11 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
       continue;
     }
     let delivered = false;
+    // The PSID Meta returns for the private reply. On Facebook Pages this is
+    // the only reliable link between the comment and the person's Messenger
+    // thread (the comment may carry no author id at all), so it is stored on
+    // the log and matched by postbacks, reads and inbound messages.
+    let recipientId: string | undefined;
     try {
       if (useOpeningDm) {
         const openingText = renderMessageWithTracking({
@@ -675,7 +681,7 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
           commenterName,
           trackedLinks: [],
         });
-        await sendPrivateReplyWithButton({
+        const sent = await sendPrivateReplyWithButton({
           context: accessToken,
           instagramAccountId: automation.instagramAccount.instagramId,
           commentId: commentId,
@@ -686,6 +692,7 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
           payload: `${requireFollow ? "followcheck" : "reveal"}:${automation.id}:open`,
           postId: mediaId,
         });
+        recipientId = sent?.recipient_id;
       } else if (sendFollowPrompt) {
         const promptText = renderMessageWithoutLink({
           message:
@@ -693,7 +700,7 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
             "quick favor before i send your link. i don't make any money from this, it's free. if you want to support me, just don't unfollow after, and star the repo on github if it helps you. tap the button once you're following and i'll send it over",
           commenterName,
         });
-        await sendPrivateReplyWithButton({
+        const sent = await sendPrivateReplyWithButton({
           context: accessToken,
           instagramAccountId: automation.instagramAccount.instagramId,
           commentId: commentId,
@@ -702,6 +709,7 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
           payload: `followcheck:${automation.id}`,
           postId: mediaId,
         });
+        recipientId = sent?.recipient_id;
       } else if (automation.trackedLinks.length > 0) {
         // Try button template first; if Meta rejects it, fall back to inline links.
         const bodyText =
@@ -716,7 +724,7 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
         );
 
         try {
-          await sendPrivateReplyWithLinkButton({
+          const sent = await sendPrivateReplyWithLinkButton({
             context: accessToken,
             instagramAccountId: automation.instagramAccount.instagramId,
             commentId: commentId,
@@ -724,6 +732,7 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
             buttons: buttons,
             postId: mediaId,
           });
+          recipientId = sent?.recipient_id;
         } catch (buttonError) {
           // Only a template rejection is worth retrying as text. Anything else
           // (closed window, comment already replied to) fails the same way and
@@ -742,13 +751,14 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
             hashRecipientId(commenterId)
           );
           try {
-            await sendPrivateReply({
+            const sent = await sendPrivateReply({
               context: accessToken,
               instagramAccountId: automation.instagramAccount.instagramId,
               commentId: commentId,
               message: fallbackMessage,
               postId: mediaId,
             });
+            recipientId = sent?.recipient_id;
           } catch (fallbackError) {
             throw classifySendError(fallbackError);
           }
@@ -760,13 +770,14 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
           trackedLinks: automation.trackedLinks,
           recipientToken: hashRecipientId(commenterId),
         });
-        await sendPrivateReply({
+        const sent = await sendPrivateReply({
           context: accessToken,
           instagramAccountId: automation.instagramAccount.instagramId,
           commentId: commentId,
           message: dmMessage,
           postId: mediaId,
         });
+        recipientId = sent?.recipient_id;
       }
 
       delivered = true;
@@ -782,6 +793,7 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
           dmSentAt: new Date(),
           dmDeliveryUnconfirmed: false,
           errorMessage: null,
+          ...(recipientId ? { recipientId } : {}),
         },
       });
     } catch (error) {
@@ -796,6 +808,7 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
         data: {
           status: delivered ? "SENT" : "FAILED",
           ...(delivered ? { dmSentAt: new Date() } : {}),
+          ...(delivered && recipientId ? { recipientId } : {}),
           errorMessage: formatError(sendError),
           dmDeliveryUnconfirmed: isDeliveryUnconfirmed(sendError),
         },
@@ -945,7 +958,10 @@ async function processPostback(job: Job<ProcessPostbackJob>): Promise<void> {
 
   // Personalize {username} from the opening DM log for this user, if present.
   const openingLog = await prisma.dmLog.findFirst({
-    where: { automationId: automation.id, commenterId: userId },
+    where: {
+      automationId: automation.id,
+      OR: [{ commenterId: userId }, { recipientId: userId }],
+    },
     select: { commenterName: true },
   });
   const commenterName = openingLog?.commenterName ?? null;
@@ -1104,6 +1120,7 @@ async function processPostback(job: Job<ProcessPostbackJob>): Promise<void> {
         automationId: automation.id,
         instagramAccountId: automation.instagramAccountId,
         commenterId: userId,
+        recipientId: userId,
         commenterName,
         commentText: "(button tap)",
         commentId: dedupeId,
@@ -1168,6 +1185,7 @@ async function processPostback(job: Job<ProcessPostbackJob>): Promise<void> {
         automationId: automation.id,
         instagramAccountId: automation.instagramAccountId,
         commenterId: userId,
+        recipientId: userId,
         commenterName,
         commentText: "(button tap)",
         commentId: dedupeId,
@@ -1210,6 +1228,7 @@ async function processPostback(job: Job<ProcessPostbackJob>): Promise<void> {
         automationId: automation.id,
         instagramAccountId: automation.instagramAccountId,
         commenterId: userId,
+        recipientId: userId,
         commenterName,
         commentText: "(button tap)",
         commentId: dedupeId,
@@ -1344,6 +1363,7 @@ async function processMessage(job: Job<ProcessMessageJob>): Promise<void> {
       automationId: automation.id,
       instagramAccountId: automation.instagramAccountId,
       commenterId: senderId,
+      recipientId: senderId,
       commentText: messageText,
       commentId: dedupeId,
       matchedKeyword: matchResult.matchedKeyword,
@@ -1400,7 +1420,10 @@ async function processMessage(job: Job<ProcessMessageJob>): Promise<void> {
     // Reuse a name captured on an earlier interaction so {username} still
     // renders — the messages webhook carries only the sender's IGSID.
     const priorLog = await prisma.dmLog.findFirst({
-      where: { automationId: automation.id, commenterId: senderId },
+      where: {
+        automationId: automation.id,
+        OR: [{ commenterId: senderId }, { recipientId: senderId }],
+      },
       select: { commenterName: true },
     });
     const commenterName = priorLog?.commenterName ?? null;
@@ -1568,6 +1591,17 @@ async function processJob(job: Job<DmQueueJob>): Promise<void> {
     // format across every UnrecoverableError thrown from this worker.
     if (isDeliveryUnconfirmed(error))
       throw new UnrecoverableError(formatError(error));
+    // A Page token Meta rejected is regenerated from the system user, so the
+    // job's next attempt runs with a fresh one. No-op for other providers.
+    if (error instanceof TokenExpiredError && job.data.accountConnectionId) {
+      await refreshFacebookPageToken(job.data.accountConnectionId).catch(
+        (refreshError) =>
+          console.log(
+            "[DM Worker] Failed to refresh Page token:",
+            formatError(refreshError)
+          )
+      );
+    }
     throw error;
   }
 }

@@ -136,3 +136,50 @@ describe("comment polling does not recreate unsafe sends", () => {
     },
   );
 });
+
+describe("Page comments without an author", () => {
+  function campaign(provider: "META" | "FACEBOOK_PAGE") {
+    return {
+      id: "campaign",
+      name: "Campaign",
+      workspaceId: "workspace",
+      postId: POST,
+      matchAnyWord: false,
+      keywords: ["AI"],
+      publicReplyEnabled: false,
+      instagramAccount: {
+        id: "connection",
+        instagramId: "owner",
+        provider,
+        accessToken: "test",
+      },
+    };
+  }
+  beforeEach(() => {
+    queueAdd.mockReset();
+    mockPrisma.operationalEvent.create.mockResolvedValue({});
+    mockPrisma.$queryRaw.mockResolvedValue([]);
+    mockPrisma.dmLog.findMany.mockResolvedValue([]);
+    readComments.mockResolvedValue([
+      { id: "anon", text: "AI", timestamp: new Date().toISOString() },
+      { id: "own", text: "AI", from: { id: "owner" }, timestamp: new Date().toISOString() },
+    ]);
+  });
+
+  it("enqueues a Page comment with no `from` under the sentinel commenter id", async () => {
+    mockPrisma.automation.findMany.mockResolvedValue([campaign("FACEBOOK_PAGE")]);
+    await reconcileComments();
+    expect(queueAdd).toHaveBeenCalledTimes(1);
+    expect(queueAdd.mock.calls[0][1]).toMatchObject({
+      commentId: "anon",
+      commenterId: "comment:anon",
+      source: "POLLING",
+    });
+  });
+
+  it("still drops Instagram comments without an author", async () => {
+    mockPrisma.automation.findMany.mockResolvedValue([campaign("META")]);
+    await reconcileComments();
+    expect(queueAdd).not.toHaveBeenCalled();
+  });
+});

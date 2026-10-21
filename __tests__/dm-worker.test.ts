@@ -121,6 +121,11 @@ vi.mock("@/lib/queue/client", () => ({
   MESSAGE_JOB_NAME: "process-message",
 }));
 
+const mockRefreshPageToken = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/facebook/page-token", () => ({
+  refreshFacebookPageToken: mockRefreshPageToken,
+}));
+
 vi.mock("bullmq", () => {
   function MockWorker(_name: string, processor: unknown) {
     (global as Record<string, unknown>).__dmWorkerProcessor = processor;
@@ -1763,4 +1768,49 @@ it("retains the public reply claim if sending succeeded but its log write failed
   await process({ ...createMockJob(), id: "next-poll" });
   expect(sendCommentReply).toHaveBeenCalledTimes(1);
   expect(mockSendPrivateReply).toHaveBeenCalledTimes(1);
+});
+
+describe("Facebook Page support in the worker", () => {
+  it("records the PSID returned by the private reply on the log", async () => {
+    mockSendPrivateReply.mockResolvedValue({
+      recipient_id: "psid_777",
+      message_id: "msg_page",
+    });
+    const processor = getProcessor();
+    await processor(
+      createMockJob({ ...mockJobData, commenterId: "comment:comment_555" })
+    );
+    expect(mockPrisma.dmLog.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "SENT", recipientId: "psid_777" }),
+      })
+    );
+  });
+
+  it("refreshes the Page token when Meta rejects it, then lets the job retry", async () => {
+    const { TokenExpiredError } = await import("@/lib/meta/client");
+    mockSendPrivateReply.mockRejectedValue(new TokenExpiredError("expired"));
+    mockRefreshPageToken.mockResolvedValue(true);
+    const processor = getProcessor();
+    await expect(
+      processor(
+        createMockJob({ ...mockJobData, accountConnectionId: "ig_account_row_1" })
+      )
+    ).rejects.toBeInstanceOf(TokenExpiredError);
+    expect(mockRefreshPageToken).toHaveBeenCalledWith("ig_account_row_1");
+    expect(mockPrisma.dmLog.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "FAILED" }) })
+    );
+  });
+
+  it("does not touch the token refresh for other failures", async () => {
+    mockSendPrivateReply.mockRejectedValue(new RateLimitError("slow down"));
+    const processor = getProcessor();
+    await expect(
+      processor(
+        createMockJob({ ...mockJobData, accountConnectionId: "ig_account_row_1" })
+      )
+    ).rejects.toBeInstanceOf(RateLimitError);
+    expect(mockRefreshPageToken).not.toHaveBeenCalled();
+  });
 });
