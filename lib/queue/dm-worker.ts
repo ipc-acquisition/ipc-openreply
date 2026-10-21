@@ -1472,6 +1472,41 @@ async function processMessage(job: Job<ProcessMessageJob>): Promise<void> {
       continue;
     }
 
+    const logKey = {
+      automationId_commentId: {
+        automationId: automation.id,
+        commentId: dedupeId,
+      },
+    };
+
+    // Claim before calling Meta (docs/delivery-retries.md). A redelivered or
+    // replayed webhook re-enqueues this message, and the job may also die
+    // between the send and the SENT write; the claim keeps either from
+    // producing a second reply.
+    let claimed;
+    try {
+      await prisma.dmLog.upsert({
+        where: logKey,
+        create: { ...logBase, commenterName, status: "PENDING" },
+        update: {},
+      });
+      claimed = await claimCommentDelivery(automation.id, dedupeId, "dm");
+    } catch (error) {
+      await releaseWorkspaceDMReservation(
+        automation.workspaceId,
+        usage.periodStart
+      );
+      throw error;
+    }
+    if (!claimed) {
+      await releaseWorkspaceDMReservation(
+        automation.workspaceId,
+        usage.periodStart
+      );
+      continue;
+    }
+
+    let delivered = false;
     try {
       if (sendFollowPrompt) {
         const promptText = renderMessageWithoutLink({
@@ -1496,35 +1531,11 @@ async function processMessage(job: Job<ProcessMessageJob>): Promise<void> {
           commenterName: commenterName,
           context: "message trigger",
         });
-
-        // The link has been delivered, so the appreciation follow-up applies
-        // here exactly as it does after a button tap. Not scheduled behind the
-        // follow prompt — no link went out yet in that branch.
-        if (automation.followUpEnabled && automation.followUpMessage?.trim()) {
-          await getDMQueue().add(
-            FOLLOWUP_JOB_NAME,
-            {
-              instagramAccountId: automation.instagramAccount.instagramId,
-              accountConnectionId: automation.instagramAccountId,
-              userId: senderId,
-              automationId: automation.id,
-              commenterName,
-            },
-            {
-              delay: Math.max(0, automation.followUpDelayMinutes ?? 0) * 60_000,
-              jobId: `followup_${automation.id}_${senderId}`,
-            }
-          );
-        }
       }
+      delivered = true;
 
       await prisma.dmLog.upsert({
-        where: {
-          automationId_commentId: {
-            automationId: automation.id,
-            commentId: dedupeId,
-          },
-        },
+        where: logKey,
         create: {
           ...logBase,
           commenterName,
@@ -1534,37 +1545,61 @@ async function processMessage(job: Job<ProcessMessageJob>): Promise<void> {
         update: {
           status: "SENT",
           dmSentAt: new Date(),
+          dmDeliveryUnconfirmed: false,
           errorMessage: null,
         },
       });
     } catch (error) {
-      await releaseWorkspaceDMReservation(
-        automation.workspaceId,
-        usage.periodStart
-      );
+      const sendError = classifySendError(error);
+      // Only an explicit rejection proves nothing went out; anything else
+      // keeps the claim, and with it the reservation.
+      if (isConfirmedSendRejection(sendError)) {
+        await releaseWorkspaceDMReservation(
+          automation.workspaceId,
+          usage.periodStart
+        );
+      }
       await prisma.dmLog.upsert({
-        where: {
-          automationId_commentId: {
-            automationId: automation.id,
-            commentId: dedupeId,
-          },
-        },
+        where: logKey,
         create: {
           ...logBase,
           commenterName,
-          status: "FAILED",
-          attempts: job.attemptsMade + 1,
-          errorMessage: formatError(error),
-          dmDeliveryUnconfirmed: isDeliveryUnconfirmed(error),
+          status: delivered ? "SENT" : "FAILED",
+          errorMessage: formatError(sendError),
+          dmDeliveryUnconfirmed: isDeliveryUnconfirmed(sendError),
         },
         update: {
-          status: "FAILED",
-          attempts: job.attemptsMade + 1,
-          errorMessage: formatError(error),
-          dmDeliveryUnconfirmed: isDeliveryUnconfirmed(error),
+          status: delivered ? "SENT" : "FAILED",
+          ...(delivered ? { dmSentAt: new Date() } : {}),
+          errorMessage: formatError(sendError),
+          dmDeliveryUnconfirmed: isDeliveryUnconfirmed(sendError),
         },
       });
-      throw error;
+      throw sendError;
+    }
+
+    // The link has been delivered, so the appreciation follow-up applies
+    // here exactly as it does after a button tap. Not scheduled behind the
+    // follow prompt — no link went out yet in that branch.
+    if (
+      !sendFollowPrompt &&
+      automation.followUpEnabled &&
+      automation.followUpMessage?.trim()
+    ) {
+      await getDMQueue().add(
+        FOLLOWUP_JOB_NAME,
+        {
+          instagramAccountId: automation.instagramAccount.instagramId,
+          accountConnectionId: automation.instagramAccountId,
+          userId: senderId,
+          automationId: automation.id,
+          commenterName,
+        },
+        {
+          delay: Math.max(0, automation.followUpDelayMinutes ?? 0) * 60_000,
+          jobId: `followup_${automation.id}_${senderId}`,
+        }
+      );
     }
   }
 }

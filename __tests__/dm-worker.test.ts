@@ -1166,23 +1166,93 @@ describe("DM Worker — DM keyword trigger", () => {
     );
   });
 
-  it("should release the usage reservation and rethrow when the send fails", async () => {
+  it("keeps the claim and the reservation when the send outcome is unknown", async () => {
     mockSendDirectMessage.mockRejectedValue(new Error("Meta is down"));
 
     const processor = getProcessor();
+    await expect(processor(createMockMessageJob())).rejects.toMatchObject({
+      name: "UnrecoverableError",
+      message: expect.stringContaining("Meta is down"),
+    });
+
+    expect(mockReleaseWorkspaceDMReservation).not.toHaveBeenCalled();
+    expect(mockPrisma.dmLog.upsert).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          status: "FAILED",
+          dmDeliveryUnconfirmed: true,
+        }),
+      })
+    );
+  });
+
+  it("releases the claim and the reservation when Meta rejects the send", async () => {
+    mockSendDirectMessage.mockRejectedValue(
+      new MetaApiError(10, undefined, undefined, "Outside the messaging window")
+    );
+
+    const processor = getProcessor();
     await expect(processor(createMockMessageJob())).rejects.toThrow(
-      "Meta is down"
+      "Outside the messaging window"
     );
 
     expect(mockReleaseWorkspaceDMReservation).toHaveBeenCalledWith(
       "workspace_123",
       usagePeriodStart
     );
-    expect(mockPrisma.dmLog.upsert).toHaveBeenCalledWith(
+    expect(mockPrisma.dmLog.upsert).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({ status: "FAILED" }),
+        update: expect.objectContaining({
+          status: "FAILED",
+          dmDeliveryUnconfirmed: false,
+        }),
       })
     );
+  });
+
+  it("claims the reply in DmLog before calling Meta", async () => {
+    const order: string[] = [];
+    mockPrisma.dmLog.updateMany.mockImplementation(async () => {
+      order.push("claim");
+      return { count: 1 };
+    });
+    mockSendDirectMessage.mockImplementation(async () => {
+      order.push("send");
+      return { recipient_id: "commenter_999", message_id: "m" };
+    });
+
+    await getProcessor()(createMockMessageJob());
+
+    expect(order).toEqual(["claim", "send"]);
+    expect(mockPrisma.dmLog.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          automationId: "auto_789",
+          commentId: "dm:mid_abc",
+          dmDeliveryUnconfirmed: false,
+        }),
+        data: expect.objectContaining({ dmDeliveryUnconfirmed: true }),
+      })
+    );
+  });
+
+  it("sends one reply when a replayed webhook delivers the same message twice", async () => {
+    // A replay can re-enqueue a message whose first job is still running, or
+    // ran and died before writing SENT. Only the claim winner sends.
+    let claimed = false;
+    mockPrisma.dmLog.updateMany.mockImplementation(async () => {
+      if (claimed) return { count: 0 };
+      claimed = true;
+      return { count: 1 };
+    });
+
+    const processor = getProcessor();
+    await processor(createMockMessageJob());
+    await processor({ ...createMockMessageJob(), id: "message_job_replayed" });
+
+    expect(mockSendDirectMessage).toHaveBeenCalledTimes(1);
+    // The losing job gives its usage reservation back.
+    expect(mockReleaseWorkspaceDMReservation).toHaveBeenCalledTimes(1);
   });
 });
 
