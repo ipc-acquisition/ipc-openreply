@@ -69,7 +69,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="panel rounded p-4 sm:p-6">
+    <section className="panel rounded-xl p-4 sm:p-6">
       <h2 className="text-base font-semibold text-foreground">{title}</h2>
       <div className="mt-4">{children}</div>
     </section>
@@ -113,7 +113,7 @@ export default function DiagnosticsPage() {
   }, []);
 
   if (loading && !data) {
-    return <div className="panel rounded p-8 h-64" />;
+    return <div className="panel rounded-xl p-8 h-64" />;
   }
 
   const workerAgeSeconds =
@@ -141,7 +141,7 @@ export default function DiagnosticsPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
-        <div className="panel rounded p-4 sm:p-5">
+        <div className="panel rounded-xl p-4 sm:p-5">
           <p className="text-xs font-semibold uppercase text-muted">
             {t("Worker health")}
           </p>
@@ -159,7 +159,7 @@ export default function DiagnosticsPage() {
           </p>
         </div>
         {["waiting", "active", "delayed", "failed"].map((key) => (
-          <div key={key} className="panel rounded p-4 sm:p-5">
+          <div key={key} className="panel rounded-xl p-4 sm:p-5">
             <p className="text-xs font-semibold uppercase text-muted">
               {t("Queue")} {label(key)}
             </p>

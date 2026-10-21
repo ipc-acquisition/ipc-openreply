@@ -15,7 +15,7 @@ export default function PrivacyPage() {
       updatedAt="May 24, 2026"
     >
       <section>
-        <h2 className="text-xl font-bold text-white">Data We Collect</h2>
+        <h2 className="text-xl font-bold text-foreground">Data We Collect</h2>
         <p className="mt-3">
           We collect account email addresses for authentication, workspace and
           billing metadata, connected Instagram account identifiers, encrypted
@@ -26,7 +26,7 @@ export default function PrivacyPage() {
       </section>
 
       <section>
-        <h2 className="text-xl font-bold text-white">How We Use Data</h2>
+        <h2 className="text-xl font-bold text-foreground">How We Use Data</h2>
         <p className="mt-3">
           We use this data to authenticate users, connect Instagram
           integrations, match comment keywords, send private replies through the
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
       </section>
 
       <section>
-        <h2 className="text-xl font-bold text-white">Instagram And Meta Data</h2>
+        <h2 className="text-xl font-bold text-foreground">Instagram And Meta Data</h2>
         <p className="mt-3">
           OpenReply does not ask for Instagram passwords, scrape Instagram, or
           use browser automation. Instagram tokens are encrypted at rest and are
@@ -46,7 +46,7 @@ export default function PrivacyPage() {
       </section>
 
       <section>
-        <h2 className="text-xl font-bold text-white">Subprocessors</h2>
+        <h2 className="text-xl font-bold text-foreground">Subprocessors</h2>
         <p className="mt-3">
           The production service may use hosting, database, Redis queue, email,
           and observability providers such as Vercel, Railway, PostgreSQL,
@@ -56,7 +56,7 @@ export default function PrivacyPage() {
       </section>
 
       <section>
-        <h2 className="text-xl font-bold text-white">Retention And Deletion</h2>
+        <h2 className="text-xl font-bold text-foreground">Retention And Deletion</h2>
         <p className="mt-3">
           Customers can disconnect Instagram from settings, which removes the
           stored Instagram connection and stops campaigns. For account or data
@@ -65,7 +65,7 @@ export default function PrivacyPage() {
       </section>
 
       <section>
-        <h2 className="text-xl font-bold text-white">Contact</h2>
+        <h2 className="text-xl font-bold text-foreground">Contact</h2>
         <p className="mt-3">
           For privacy questions, contact the repository owner through GitHub or
           the support email configured for the hosted OpenReply service.

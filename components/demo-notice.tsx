@@ -82,7 +82,7 @@ export function DemoNotice({ variant }: { variant: "banner" | "panel" }) {
           type="button"
           onClick={dismiss}
           aria-label={t("Dismiss demo notice")}
-          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-zinc-500 transition hover:text-zinc-900 sm:right-4"
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-muted transition hover:text-zinc-900 sm:right-4"
         >
           <DismissIcon />
         </button>

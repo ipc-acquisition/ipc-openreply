@@ -32,7 +32,7 @@ export default async function LoginPage({
           <h1 className="text-2xl font-semibold text-foreground">
             OpenReply
           </h1>
-          <div className="panel rounded p-8 mt-8 shadow-black/40">
+          <div className="panel rounded-xl p-8 mt-8 shadow-black/40">
             <h2 className="text-lg font-semibold text-foreground">
               {t("Sign-in is off on this demo")}
             </h2>
@@ -43,7 +43,7 @@ export default async function LoginPage({
               href={SETUP_DOCS_URL}
               target="_blank"
               rel="noreferrer"
-              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded bg-accent px-6 py-3.5 text-sm font-semibold text-white shadow-indigo-500/25 transition-all hover:shadow-indigo-500/30"
+              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded bg-accent px-6 py-3.5 text-sm font-semibold text-accent-foreground transition-all"
             >
               {t("Clone it yourself")} <span aria-hidden="true">↗</span>
             </a>
@@ -85,7 +85,7 @@ export default async function LoginPage({
 
         <DemoNotice variant="panel" />
 
-        <div className="panel rounded p-8 shadow-black/40">
+        <div className="panel rounded-xl p-8 shadow-black/40">
           {selectedTemplate && !checkEmail && (
             <div className="mb-5 border border-accent/20 bg-accent/10 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-accent">
@@ -120,13 +120,13 @@ export default async function LoginPage({
                   required
                   autoComplete="email"
                   placeholder="you@company.com"
-                  className="w-full px-4 py-3 rounded bg-surface border border-border text-sm text-foreground placeholder:text-zinc-500 focus:border-accent/40 focus:outline-none transition-colors"
+                  className="w-full px-4 py-3 rounded bg-surface border border-border text-sm text-foreground placeholder:text-muted focus:border-accent/40 focus:outline-none transition-colors"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full inline-flex items-center justify-center gap-2 rounded bg-accent px-6 py-3.5 text-sm font-semibold text-white shadow-indigo-500/25 transition-all hover:shadow-indigo-500/30"
+                className="w-full inline-flex items-center justify-center gap-2 rounded bg-accent px-6 py-3.5 text-sm font-semibold text-accent-foreground transition-all"
               >
                 {t("Email me a magic link")}
               </button>

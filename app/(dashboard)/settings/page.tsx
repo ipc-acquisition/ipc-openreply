@@ -112,7 +112,7 @@ export default function SettingsPage() {
   }
 
   if (loading) {
-    return <div className="panel rounded p-8 h-64" />;
+    return <div className="panel rounded-xl p-8 h-64" />;
   }
 
   const canManageMembers =
@@ -121,7 +121,7 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">
-      <section className="panel rounded p-4 sm:p-6 space-y-3">
+      <section className="panel rounded-xl p-4 sm:p-6 space-y-3">
         <h2 className="text-base font-semibold">{t("Interface language")}</h2>
         <LanguageSwitcher />
         <p className="text-sm text-muted">{t("Saved in this browser. Campaign messages stay unchanged.")}</p>
@@ -129,7 +129,7 @@ export default function SettingsPage() {
 
       <FacebookPagesConnection canManage={canManageMembers} />
 
-      <section className="panel rounded p-4 sm:p-6">
+      <section className="panel rounded-xl p-4 sm:p-6">
         <h2 className="text-base font-semibold mb-6">{t("Team")}</h2>
         <div className="space-y-3">
           {membersData?.members.map((member) => (
@@ -152,7 +152,7 @@ export default function SettingsPage() {
 
         {membersData?.invitations.length ? (
           <div className="mt-6 border-t border-border pt-4">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
               {t("Pending invites")}
             </p>
             <div className="space-y-3">
@@ -220,7 +220,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={busy === "invite"}
-              className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+              className="rounded bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent-hover disabled:opacity-50"
             >
               {busy === "invite" ? t("Inviting...") : t("Invite")}
             </button>
@@ -231,7 +231,7 @@ export default function SettingsPage() {
         )}
       </section>
 
-      <section className="panel rounded p-4 sm:p-6">
+      <section className="panel rounded-xl p-4 sm:p-6">
         <h2 className="text-base font-semibold mb-6">{t("Usage")}</h2>
         <div className="flex items-center justify-between gap-3 py-3">
           <div>

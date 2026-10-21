@@ -72,7 +72,7 @@ export default function DashboardPage() {
       <div className="space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="panel rounded p-5 h-32">
+            <div key={i} className="panel rounded-xl p-5 h-32">
               <div className="w-10 h-10 rounded bg-surface-hover" />
               <div className="mt-4 h-6 w-16 bg-surface-hover rounded" />
               <div className="mt-2 h-4 w-24 bg-surface-hover/60 rounded" />
@@ -130,7 +130,7 @@ export default function DashboardPage() {
       {/* Chart + Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-6 gap-4 sm:gap-6">
         {/* 7-Day Chart */}
-        <div className="lg:col-span-3 panel rounded p-4 sm:p-6">
+        <div className="lg:col-span-3 panel rounded-xl p-4 sm:p-6">
           <h2 className="text-sm font-semibold text-foreground mb-6">{t("DMs — Last 7 Days")}</h2>
           <div className="flex items-end gap-1.5 h-40 sm:gap-2">
             {stats?.dailyDMs.map((day) => (
@@ -145,7 +145,7 @@ export default function DashboardPage() {
                   />
                 </div>
                 {/* Seven labels share a phone's width, so they must not wrap. */}
-                <span className="w-full truncate text-center text-[10px] text-zinc-500">
+                <span className="w-full truncate text-center text-[10px] text-muted">
                   {label(day.date)}
                 </span>
               </div>
@@ -154,7 +154,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Top Keywords */}
-        <div className="lg:col-span-1 panel rounded p-4 sm:p-6">
+        <div className="lg:col-span-1 panel rounded-xl p-4 sm:p-6">
           <h2 className="text-sm font-semibold text-foreground mb-4">{t("Top Keywords")}</h2>
           <div className="space-y-3">
             {stats?.topKeywords.length === 0 && (
@@ -172,7 +172,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent Activity */}
-        <div className="lg:col-span-2 panel rounded p-4 sm:p-6">
+        <div className="lg:col-span-2 panel rounded-xl p-4 sm:p-6">
           <h2 className="text-sm font-semibold text-foreground mb-4">{t("Recent Activity")}</h2>
           <div className="space-y-3 max-h-60 overflow-y-auto">
             {stats?.recentLogs.length === 0 && (

@@ -1,33 +1,56 @@
 @import "tailwindcss";
 
-/* ManyChat Alternative — Design System
-   Plain and functional. No gradients, glass, glow, or animation. */
+/* IPC — Design System (Media Kit v1.0)
+   Dark-first. IPC green is the only brand color; everything else is a cool neutral.
+   Inter for UI, JetBrains Mono for numbers, KPIs and technical labels.
+   Motion is short and functional: nothing animates just to decorate. */
 
 @theme inline {
-  --color-background: #ffffff;
-  --color-foreground: #18181b;
-  --color-surface: #f7f7f8;
-  --color-surface-hover: #efeff1;
-  --color-border: #e4e4e7;
-  --color-border-hover: #d4d4d8;
-  --color-muted: #71717a;
-  --color-accent: #f97316;
-  --color-accent-hover: #ea580c;
-  --color-success: #16a34a;
-  --color-error: #dc2626;
-  --color-warning: #d97706;
-  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, monospace;
+  --color-background: #080c16;
+  --color-foreground: #f8fafc;
+  --color-surface: #0b111e;
+  --color-surface-hover: #151c29;
+  --color-surface-raised: #0e1525;
+  --color-border: #1d283a;
+  --color-border-hover: #293851;
+  --color-muted: #7588a3;
+  --color-accent: #1fba56;
+  --color-accent-hover: #2ad065;
+  --color-accent-foreground: #080c16;
+  --color-success: #1fba56;
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+  --color-info: #0ea5e9;
+
+  --color-chart-1: #1fba56;
+  --color-chart-2: #0da2e7;
+  --color-chart-3: #f59f0a;
+  --color-chart-4: #b054de;
+  --color-chart-5: #dc2828;
+
+  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  /* `rounded` (controls) stays at 8px; cards use rounded-xl = 0.75rem, the brand radius. */
+  --radius: 0.5rem;
+
+  /* Strong ease-out: starts fast, settles slowly. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 html {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01";
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 
 /* Focus ring — visible, for keyboard users. */
@@ -55,7 +78,20 @@ select:focus-visible {
   }
 }
 
-/* Panel — flat container. Replaces .glass / .glass-strong. */
+/* Buttons press in slightly when clicked. */
+button,
+[role="button"] {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: 150ms;
+  transition-timing-function: var(--ease-out);
+}
+
+button:not(:disabled):active,
+[role="button"]:active {
+  transform: scale(0.97);
+}
+
+/* Panel — the default card surface. */
 .panel {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -73,10 +109,55 @@ select:focus-visible {
   background: none;
 }
 
+/* Brand technical label: mono, uppercase, tracked out. */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* KPI numbers, tables and counters align on the digit. */
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Backdrop for entry screens (login, invite): fine grid plus a green glow at the
+   top, as on the Media Kit cover. */
+.brand-backdrop {
+  background-color: var(--color-background);
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgb(31 186 86 / 0.16), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgb(0 209 132 / 0.08), transparent 55%),
+    linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 48px 48px, 48px 48px;
+}
+
+/* Content entrance: opacity plus a short rise, nothing more. */
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
 .animate-fade-in,
-.animate-slide-in,
-.animate-pulse-glow,
+.animate-slide-in {
+  animation: enter 280ms var(--ease-out) both;
+}
+
 .stagger > * {
+  animation: enter 320ms var(--ease-out) both;
+}
+.stagger > *:nth-child(2) { animation-delay: 40ms; }
+.stagger > *:nth-child(3) { animation-delay: 80ms; }
+.stagger > *:nth-child(4) { animation-delay: 120ms; }
+.stagger > *:nth-child(n + 5) { animation-delay: 160ms; }
+
+.animate-pulse-glow {
   animation: none;
 }
 
@@ -86,6 +167,11 @@ select:focus-visible {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+
+  button:not(:disabled):active,
+  [role="button"]:active {
+    transform: none;
   }
 }
 

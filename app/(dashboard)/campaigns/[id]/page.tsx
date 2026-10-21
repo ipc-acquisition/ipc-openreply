@@ -132,7 +132,7 @@ export default function CampaignDetailPage() {
   }
   if (notFound || !campaign) {
     return (
-      <div className="panel rounded p-8 text-center">
+      <div className="panel rounded-xl p-8 text-center">
         <p className="text-sm text-muted">{t("Campaign not found.")}</p>
         <button
           onClick={() => router.push("/campaigns")}
@@ -187,7 +187,7 @@ export default function CampaignDetailPage() {
             className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold ${
               campaign.isActive
                 ? "bg-success/10 text-success"
-                : "bg-zinc-500/10 text-muted"
+                : "bg-surface-hover text-muted"
             }`}
           >
             {campaign.isActive ? t("LIVE") : t("Paused")}
@@ -328,7 +328,7 @@ export default function CampaignDetailPage() {
         {tab === "insights" && (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {metrics.map((m) => (
-              <div key={m.label} className="panel rounded p-4">
+              <div key={m.label} className="panel rounded-xl p-4">
                 <p className="text-sm text-muted">{m.label}</p>
                 <p className="mt-1 text-2xl font-semibold text-foreground">
                   {m.value}

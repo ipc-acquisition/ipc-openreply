@@ -100,7 +100,7 @@ export function FacebookPagesConnection({ canManage }: { canManage: boolean }) {
       <div className="flex gap-3">
         <button
           disabled={busy !== null || !token}
-          className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+          className="rounded bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent-hover disabled:opacity-50"
         >
           {busy === "token" ? t("Saving…") : t("Save token")}
         </button>
@@ -121,7 +121,7 @@ export function FacebookPagesConnection({ canManage }: { canManage: boolean }) {
   );
 
   return (
-    <section className="panel rounded p-4 sm:p-6" aria-labelledby="facebook-pages-heading">
+    <section className="panel rounded-xl p-4 sm:p-6" aria-labelledby="facebook-pages-heading">
       <h2 id="facebook-pages-heading" className="text-base font-semibold">
         {t("Facebook Pages")}
       </h2>
@@ -234,7 +234,7 @@ export function FacebookPagesConnection({ canManage }: { canManage: boolean }) {
                               body: { pageId: page.id },
                             })
                           }
-                          className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                          className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground transition-colors hover:bg-accent-hover disabled:opacity-50"
                         >
                           {busy === `connect:${page.id}` ? t("Connecting…") : t("Connect")}
                         </button>

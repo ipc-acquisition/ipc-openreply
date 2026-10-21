@@ -131,7 +131,7 @@ export default function LogsPage() {
       </div>
 
       {/* Table */}
-      <div className="panel rounded overflow-hidden">
+      <div className="panel rounded-xl overflow-hidden">
         {/* Six columns don't fit a phone; the table keeps its width and scrolls
             horizontally inside the panel rather than crushing every cell. */}
         <div className="overflow-x-auto">

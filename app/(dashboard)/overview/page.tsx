@@ -78,9 +78,9 @@ export default function OverviewPage() {
     return (
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="panel rounded p-4 h-24 sm:p-5">
-            <div className="h-4 w-16 bg-zinc-200 rounded" />
-            <div className="mt-3 h-6 w-20 bg-zinc-200/60 rounded" />
+          <div key={i} className="panel rounded-xl p-4 h-24 sm:p-5">
+            <div className="h-4 w-16 bg-surface-hover animate-pulse rounded" />
+            <div className="mt-3 h-6 w-20 bg-surface-hover/60 rounded" />
           </div>
         ))}
       </div>
@@ -89,7 +89,7 @@ export default function OverviewPage() {
 
   if (error) {
     return (
-      <div className="panel rounded p-8 text-center">
+      <div className="panel rounded-xl p-8 text-center">
         <p className="text-sm text-error">{error === "Failed to load overview" ? t("Failed to load overview") : error}</p>
         {error.includes("connect") && (
           <a
@@ -134,7 +134,7 @@ export default function OverviewPage() {
         </div>
         <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
           <label className="flex flex-col gap-2 text-sm">
-            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
               {t("Range")}
             </span>
             <select
@@ -164,7 +164,7 @@ export default function OverviewPage() {
       </div>
 
       {!insightsAvailable && !isPage && (
-        <div className="panel rounded p-4 border border-border">
+        <div className="panel rounded-xl p-4 border border-border">
           <p className="text-sm text-foreground">
             {t("Views, reach, saved and shares need the insights permission.")}
           </p>
@@ -194,7 +194,7 @@ export default function OverviewPage() {
       {!isPage && <FollowerChart data={followerHistory} followers={followers} />}
 
       {/* Per-post table */}
-      <div className="panel rounded p-4 sm:p-6">
+      <div className="panel rounded-xl p-4 sm:p-6">
         <h2 className="text-sm font-semibold text-foreground mb-4">{t("Posts")}</h2>
         {posts.length === 0 ? (
           <p className="text-sm text-muted py-8 text-center">{t("No posts found")}</p>
@@ -204,7 +204,7 @@ export default function OverviewPage() {
           <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
             <table className="w-full min-w-[720px] text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-zinc-500 border-b border-border">
+                <tr className="text-left text-xs uppercase tracking-wide text-muted border-b border-border">
                   <th className="py-2 pr-4 font-medium">{t("Post")}</th>
                   <th className="py-2 px-3 font-medium text-right">{t("Views")}</th>
                   <th className="py-2 px-3 font-medium text-right">{t("Reach")}</th>
@@ -255,7 +255,7 @@ export default function OverviewPage() {
                     <td className="py-3 px-3 text-right text-muted">
                       {formatNumber(p.shares, locale)}
                     </td>
-                    <td className="py-3 pl-3 text-right text-zinc-500">
+                    <td className="py-3 pl-3 text-right text-muted">
                       {formatDate(p.timestamp, locale)}
                     </td>
                   </tr>
