@@ -28,7 +28,7 @@ const navItems = [
   { label: "Dashboard", href: "/dashboard", Icon: DashboardIcon },
   { label: "Overview", href: "/overview", Icon: OverviewIcon },
   { label: "Inbox", href: "/inbox", Icon: InboxIcon },
-  { label: "Campaigns", href: "/campaigns", Icon: CampaignsIcon },
+  { label: "Comment-to-DM", href: "/campaigns", Icon: CampaignsIcon },
   { label: "Flows", href: "/flows", Icon: FlowsIcon },
   { label: "Moderation", href: "/moderation", Icon: ModerationIcon },
   { label: "DM Logs", href: "/logs", Icon: LogsIcon },

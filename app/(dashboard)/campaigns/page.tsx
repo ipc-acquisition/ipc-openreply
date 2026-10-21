@@ -307,7 +307,7 @@ export default function CampaignsPage() {
             href="/campaigns/new"
             className="flex-1 rounded bg-accent px-4 py-2 text-center text-sm font-medium text-accent-foreground hover:bg-accent-hover sm:flex-none"
           >
-            {t("New Campaign")}
+            {t("New comment-to-DM")}
           </Link>
         </div>
       </div>
