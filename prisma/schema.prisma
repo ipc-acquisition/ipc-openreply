@@ -79,6 +79,10 @@ model Workspace {
   facebookPageConnection FacebookPageConnection?
   moderationRules   ModerationRule[]
   moderationLogs    ModerationLog[]
+  contacts          Contact[]
+  flows             Flow[]
+  flowEnrollments   FlowEnrollment[]
+  flowClicks        FlowClick[]
   members           WorkspaceMember[]
   invitations       WorkspaceInvitation[]
   instagramAccounts InstagramAccount[]
@@ -149,6 +153,8 @@ model InstagramAccount {
   followerSnapshots FollowerSnapshot[]
   moderationRules   ModerationRule[]
   moderationLogs    ModerationLog[]
+  contacts          Contact[]
+  flows             Flow[]
 
   @@index([workspaceId])
 }
@@ -210,15 +216,19 @@ model Automation {
   wholeWordMatch Boolean @default(true)
   reportShareSlug    String? @unique
   reportShareEnabled Boolean @default(true)
+  // Flow to start once the person replies to this campaign's private reply.
+  flowId             String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   workspace        Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   instagramAccount InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
+  flow             Flow?            @relation(fields: [flowId], references: [id], onDelete: SetNull)
   dmLogs           DmLog[]
   trackedLinks     TrackedLink[]
   linkClicks       LinkClick[]
+  flowEnrollments  FlowEnrollment[]
 
   @@index([workspaceId])
   @@index([instagramAccountId])
@@ -509,6 +519,185 @@ enum ModerationActionStatus {
   DONE
   FAILED
   UNDONE
+}
+
+// --- Messenger flows (drip sequences) ---------------------------------------
+// A Flow is a sequence of DMs sent to a person after they message the Page,
+// inside the 24-hour Messenger window that each of their messages reopens.
+// Every step is tracked on its own (sent, read, clicked) so the panel can show
+// per-message numbers the way ManyChat does.
+
+// One row per person per Page, keyed by their PSID. lastInboundAt is what the
+// 24-hour window is computed from.
+model Contact {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  instagramAccountId String
+  psid               String
+  name               String?
+  firstSeenAt        DateTime @default(now())
+  lastInboundAt      DateTime?
+  optedOutAt         DateTime?
+  // Set when a human answers this person (panel inbox or Meta's own inbox);
+  // flows stay quiet until it passes. Not wired yet.
+  humanTakeoverUntil DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  workspace        Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  instagramAccount InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
+  enrollments      FlowEnrollment[]
+
+  @@unique([instagramAccountId, psid])
+  @@index([workspaceId])
+}
+
+model Flow {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  instagramAccountId String
+  name               String
+  isActive           Boolean  @default(true)
+  // Any inbound DM enrolls by default; keywords narrow it down when set.
+  triggerAnyMessage  Boolean  @default(true)
+  triggerKeywords    String[] @default([])
+  wholeWordMatch     Boolean  @default(false)
+  stopKeywords       String[] @default(["parar", "sair", "stop", "cancelar"])
+  // When a step was skipped because the window closed, the person's next
+  // message reopens it and the pending step goes out.
+  resumeOnReply      Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  workspace        Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  instagramAccount InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
+  steps            FlowStep[]
+  enrollments      FlowEnrollment[]
+  automations      Automation[]
+
+  @@index([workspaceId])
+  @@index([instagramAccountId])
+}
+
+model FlowStep {
+  id           String   @id @default(cuid())
+  flowId       String
+  position     Int
+  // Minutes after the previous step was sent (after enrollment for step 0).
+  delayMinutes Int      @default(0)
+  // Supports {username}.
+  message      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  flow     Flow          @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  buttons  FlowButton[]
+  sendLogs FlowSendLog[]
+
+  @@unique([flowId, position])
+}
+
+// A CTA button on a step: its own title, its own tracked URL. Resolved by the
+// same /r/{slug} redirect as campaign links.
+model FlowButton {
+  id        String   @id @default(cuid())
+  stepId    String
+  position  Int
+  title     String
+  url       String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  step   FlowStep    @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  clicks FlowClick[]
+
+  @@unique([stepId, position])
+}
+
+// One person's progress through one flow. A person enters a flow once.
+model FlowEnrollment {
+  id               String               @id @default(cuid())
+  workspaceId      String
+  flowId           String
+  contactId        String
+  // The comment-to-DM campaign whose reply brought the person here, if any.
+  automationId     String?
+  status           FlowEnrollmentStatus @default(ACTIVE)
+  nextStepPosition Int                  @default(0)
+  nextRunAt        DateTime?
+  enrolledAt       DateTime             @default(now())
+  endedAt          DateTime?
+  updatedAt        DateTime             @updatedAt
+
+  workspace  Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  flow       Flow          @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  contact    Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  automation Automation?   @relation(fields: [automationId], references: [id], onDelete: SetNull)
+  sendLogs   FlowSendLog[]
+  clicks     FlowClick[]
+
+  @@unique([flowId, contactId])
+  @@index([workspaceId])
+  @@index([contactId])
+  @@index([status])
+}
+
+// One row per step per enrollment. Created as the claim BEFORE the Meta call
+// (CLAIMED), then SENT/FAILED/SKIPPED_*; readAt comes from message_reads.
+model FlowSendLog {
+  id           String         @id @default(cuid())
+  enrollmentId String
+  stepId       String
+  status       FlowSendStatus
+  mid          String?
+  error        String?
+  createdAt    DateTime       @default(now())
+  sentAt       DateTime?
+  readAt       DateTime?
+
+  enrollment FlowEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  step       FlowStep       @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, stepId])
+  @@index([stepId, status])
+}
+
+model FlowClick {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  buttonId      String
+  enrollmentId  String?
+  // hashRecipientId token from `?r=`; clicks count once per person.
+  recipientHash String?
+  ipHash        String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+
+  workspace  Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  button     FlowButton      @relation(fields: [buttonId], references: [id], onDelete: Cascade)
+  enrollment FlowEnrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+
+  @@index([buttonId])
+  @@index([workspaceId, createdAt])
+}
+
+enum FlowEnrollmentStatus {
+  ACTIVE
+  PAUSED_WINDOW
+  PAUSED_TAKEOVER
+  COMPLETED
+  STOPPED_OPTOUT
+  STOPPED_MANUAL
+}
+
+enum FlowSendStatus {
+  CLAIMED
+  SENT
+  FAILED
+  SKIPPED_WINDOW
+  SKIPPED_TAKEOVER
+  SKIPPED_OPTOUT
 }
 
 // Claims persist independently of BullMQ retention so old taps never resend.
