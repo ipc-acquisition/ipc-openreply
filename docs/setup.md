@@ -93,7 +93,7 @@ Optional custom domain: if you want `openreply.yoursite.com` instead of the Verc
 
 ## Environment variables
 
-Copy `.env.example` to `.env` for local work, or set these in Vercel and Railway for hosting. Zernio credentials are saved in Settings, not environment variables. The Meta variables in the second table are only for direct Meta connections.
+Create a `.env` with these for local work (there is no `.env.example` in this fork), or set them in Vercel and Railway for hosting. Zernio credentials are saved in Settings, not environment variables. The Meta variables in the second table are only for direct Meta connections.
 
 | Variable | What it is |
 | --- | --- |
@@ -133,6 +133,29 @@ Optional, for tuning the polling reconciler (defaults are fine to start):
 After deployment, sign in as a workspace owner or admin and follow [docs/zernio.md](zernio.md). Save an unrestricted read/write API key with Inbox access, select your existing Zernio profile, then import an Instagram account or connect a new one through Zernio. OpenReply creates its webhook automatically.
 
 You can skip the entire Meta app section below and continue at [Test it end to end](#test-it-end-to-end). No `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, `FACEBOOK_APP_SECRET`, or `WEBHOOK_VERIFY_TOKEN` is needed for this path.
+
+## Páginas do Facebook (this fork)
+
+This fork runs on **Facebook Pages only**: comments on the Page and Messenger. Instagram and Zernio stay in the code but are not offered in the interface. There is no OAuth: Pages are connected through a **system user** from the owner's business portfolio, whose token is pasted once into Settings → "Páginas do Facebook". The server validates it (`/me`, `/me/accounts`), encrypts it and never returns it to the browser.
+
+### On Meta (the owner does this, one step at a time)
+
+1. In the business portfolio (Meta Business Suite → Settings → Users → System users), create a system user.
+2. Assign it the Page (full control) and the app.
+3. Generate a token for the app with `pages_show_list`, `pages_read_engagement`, `pages_read_user_content`, `pages_manage_engagement`, `pages_manage_metadata` and `pages_messaging`. Choose "never expires" if offered. Paste the token **only into the panel**, never into a chat.
+4. In the app dashboard, configure the **Page** webhook object: callback URL `https://<your-domain>/api/webhook`, the same `WEBHOOK_VERIFY_TOKEN` as in your environment. The panel subscribes each connected Page to `feed`, `messages`, `messaging_postbacks`, `message_reads` and `message_echoes`; the app-level webhook must have those fields enabled too.
+5. Set `FACEBOOK_APP_SECRET` (signs the webhook) on Vercel and on the Railway worker. `INSTAGRAM_APP_ID` and `INSTAGRAM_APP_SECRET` are no longer needed.
+6. The app must be **Live** for real webhooks. Standard Access is enough: no App Review for the owner's own Pages.
+
+### In the panel
+
+Settings → "Páginas do Facebook": paste the token, then connect each Page that lists the `MESSAGING` and `MODERATE` tasks. Each connected Page becomes an account (`provider: FACEBOOK_PAGE`) with its own encrypted Page token, and is subscribed to the webhook. "Reinscrever webhook" repeats the subscription; "Desconectar" unsubscribes and removes the Page.
+
+### What to expect under Standard Access
+
+- A comment from someone without a role on the app may arrive **without `from`**. The worker still sends the private reply (it targets the comment id) and stores the person's PSID from Meta's response in `DmLog.recipientId`; that is what links the comment to their Messenger thread.
+- The private reply is a single message per comment, within 7 days. Anything after that needs the person to reply, and lands inside the 24-hour Messenger window.
+- Follow-gating, post insights, follower history and "next reel" do not exist for Pages and are hidden.
 
 ## The Meta app
 

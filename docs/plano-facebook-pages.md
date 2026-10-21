@@ -1,5 +1,7 @@
 # Plano: migrar o projeto para Páginas do Facebook
 
+> **Estado (2026-10-21): etapas 1 a 8 implementadas** (ver `git log`). O CLAUDE.md já foi reescrito para Páginas e `docs/setup.md` tem a seção "Páginas do Facebook". Este documento fica como registro das decisões e do teste de viabilidade. Os "pontos ainda não confirmados" ao fim continuam em aberto até o primeiro teste real.
+
 Decidido em 2026-10-21 com o dono. **O produto passa a funcionar só em Páginas do Facebook.** Instagram e Zernio continuam no código, mas saem da interface. Este documento é o ponto de partida da implementação. Leia antes de mexer no código e siga a ordem das etapas.
 
 ## Contexto
