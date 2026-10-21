@@ -9,7 +9,11 @@ import {
   verifyWebhookSignature,
   parseCommentEvents,
   parseMessageEvents,
+  parsePostbackEvents,
   parseReadEvents,
+  isUnknownCommenter,
+  unknownCommenterId,
+  webhookProvider,
 } from "../lib/meta/webhook";
 import { createHmac } from "crypto";
 
@@ -159,9 +163,9 @@ describe("parseCommentEvents", () => {
     expect(parseCommentEvents(payload)[0].originalMediaId).toBeUndefined();
   });
 
-  it("should ignore non-instagram objects", () => {
+  it("should ignore unsupported objects", () => {
     const payload = {
-      object: "page",
+      object: "user",
       entry: [
         {
           id: "page_123",
@@ -445,10 +449,10 @@ describe("parseMessageEvents", () => {
     expect(parseMessageEvents(payload)).toHaveLength(0);
   });
 
-  it("should ignore non-instagram payloads", () => {
+  it("should ignore unsupported objects", () => {
     expect(
       parseMessageEvents({
-        object: "page",
+        object: "user",
         entry: [
           {
             id: "ig_456",
@@ -513,5 +517,124 @@ describe("parseReadEvents", () => {
     };
 
     expect(parseReadEvents(payload)).toHaveLength(0);
+  });
+});
+
+describe("Facebook Page payloads", () => {
+  const pageId = "page_100";
+  function pagePayload(entry: Record<string, unknown>) {
+    return {
+      object: "page",
+      entry: [{ id: pageId, time: 1234567890, ...entry }],
+    } as Parameters<typeof parseCommentEvents>[0];
+  }
+  function feedComment(value: Record<string, unknown>) {
+    return pagePayload({ changes: [{ field: "feed", value }] });
+  }
+
+  it("parses a new Page comment from the feed field", () => {
+    expect(
+      parseCommentEvents(
+        feedComment({
+          item: "comment",
+          verb: "add",
+          comment_id: "post_1_c1",
+          post_id: "page_100_post_1",
+          parent_id: "page_100_post_1",
+          from: { id: "user_7", name: "Ana Souza" },
+          message: "quero o link",
+          created_time: 1234567890,
+        })
+      )
+    ).toEqual([
+      {
+        instagramAccountId: pageId,
+        commentId: "post_1_c1",
+        commentText: "quero o link",
+        commenterId: "user_7",
+        commenterName: "Ana Souza",
+        mediaId: "page_100_post_1",
+      },
+    ]);
+  });
+
+  it("keeps a comment without `from` under a sentinel commenter id", () => {
+    const [event] = parseCommentEvents(
+      feedComment({
+        item: "comment",
+        verb: "add",
+        comment_id: "post_1_c2",
+        post_id: "page_100_post_1",
+        message: "eu também",
+      })
+    );
+    expect(event.commenterId).toBe(unknownCommenterId("post_1_c2"));
+    expect(isUnknownCommenter(event.commenterId)).toBe(true);
+    expect(isUnknownCommenter("user_7")).toBe(false);
+    expect(event.commenterName).toBeUndefined();
+  });
+
+  it("ignores edits, removals, hides and non-comment feed items", () => {
+    for (const value of [
+      { item: "comment", verb: "edited", comment_id: "c", post_id: "p", message: "x" },
+      { item: "comment", verb: "remove", comment_id: "c", post_id: "p" },
+      { item: "comment", verb: "hide", comment_id: "c", post_id: "p" },
+      { item: "post", verb: "add", post_id: "p", message: "novo post" },
+      { item: "reaction", verb: "add", post_id: "p", reaction_type: "like" },
+    ]) {
+      expect(parseCommentEvents(feedComment(value))).toHaveLength(0);
+    }
+  });
+
+  it("ignores the Page's own comments", () => {
+    expect(
+      parseCommentEvents(
+        feedComment({
+          item: "comment",
+          verb: "add",
+          comment_id: "c",
+          post_id: "p",
+          from: { id: pageId, name: "Minha Página" },
+          message: "obrigada!",
+        })
+      )
+    ).toHaveLength(0);
+  });
+
+  it("ignores Instagram-style `comments` changes on a page object", () => {
+    expect(
+      parseCommentEvents(
+        pagePayload({
+          changes: [{ field: "comments", value: { id: "c", text: "x", from: { id: "u" }, media: { id: "m" } } }],
+        })
+      )
+    ).toHaveLength(0);
+  });
+
+  it("parses Messenger messages, postbacks and reads with the PSID as sender", () => {
+    const payload = pagePayload({
+      messaging: [
+        { sender: { id: "psid_1" }, recipient: { id: pageId }, message: { mid: "m_1", text: "link" } },
+        { sender: { id: "psid_1" }, recipient: { id: pageId }, postback: { mid: "m_2", payload: "reveal:auto" } },
+        { sender: { id: "psid_1" }, recipient: { id: pageId }, read: { watermark: 99 } },
+        { sender: { id: pageId }, recipient: { id: "psid_1" }, message: { mid: "m_3", text: "eco", is_echo: true } },
+      ],
+    });
+    expect(parseMessageEvents(payload)).toEqual([
+      { instagramAccountId: pageId, messageId: "m_1", messageText: "link", senderId: "psid_1" },
+    ]);
+    expect(parsePostbackEvents(payload)).toEqual([
+      { instagramAccountId: pageId, userId: "psid_1", payload: "reveal:auto", mid: "m_2" },
+    ]);
+    expect(parseReadEvents(payload)).toEqual([
+      { instagramAccountId: pageId, userId: "psid_1", watermark: 99 },
+    ]);
+  });
+
+  it("maps the webhook object to a provider", () => {
+    expect(webhookProvider("instagram")).toBe("META");
+    expect(webhookProvider("page")).toBe("FACEBOOK_PAGE");
+    expect(webhookProvider("user")).toBeNull();
+    expect(webhookProvider(undefined)).toBeNull();
   });
 });

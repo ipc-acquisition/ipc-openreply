@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/client";
 import {
   parseCommentEvents,
   verifyWebhookSignature,
+  webhookProvider,
 } from "@/lib/meta/webhook";
 import { processInstagramWebhook } from "@/lib/queue/process-webhook";
 
@@ -61,8 +62,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // The same endpoint receives Instagram ("instagram") and Facebook Page
+  // ("page") webhooks; the object decides which connected accounts can match.
+  // Anything else is acknowledged and dropped: a non-2xx would only make Meta
+  // retry an object we do not handle.
+  const provider = webhookProvider(
+    typeof payload === "object" && payload && "object" in payload
+      ? (payload as { object: unknown }).object
+      : null
+  );
+  if (!provider) return NextResponse.json({ success: true, ignored: true });
+
   try {
-    await processInstagramWebhook({ payload: payload as Parameters<typeof parseCommentEvents>[0], provider: 'META' });
+    await processInstagramWebhook({ payload: payload as Parameters<typeof parseCommentEvents>[0], provider });
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ success: false, error: 'Webhook processing failed' }, { status: 500 });

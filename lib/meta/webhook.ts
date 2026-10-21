@@ -47,6 +47,29 @@ export interface WebhookCommentEvent {
   originalMediaId?: string;
 }
 
+// Webhooks come from two objects with the same envelope: "instagram" (comments
+// under changes[].field === "comments") and "page" (Facebook Page comments
+// under changes[].field === "feed"). Messaging entries are identical on both.
+const SUPPORTED_OBJECTS = new Set(["instagram", "page"]);
+
+function isSupportedObject(payload: WebhookPayload) {
+  return SUPPORTED_OBJECTS.has(payload.object);
+}
+
+/**
+ * Facebook Page comment webhooks may omit `from` for people without a role on
+ * the app (Standard Access). The event is still worth processing — the private
+ * reply targets the comment id, and its response carries the PSID — so the
+ * commenter is recorded under this sentinel until the PSID is known.
+ */
+export function unknownCommenterId(commentId: string) {
+  return `comment:${commentId}`;
+}
+
+export function isUnknownCommenter(commenterId: string) {
+  return commenterId.startsWith("comment:");
+}
+
 interface WebhookEntry {
   id: string;
   time: number;
@@ -59,7 +82,15 @@ interface WebhookEntry {
       from?: {
         id?: string;
         username?: string;
+        // Page comments carry a display name instead of a handle.
+        name?: string;
       };
+      // Page "feed" fields.
+      item?: string;
+      verb?: string;
+      post_id?: string;
+      parent_id?: string;
+      message?: string;
       media?: {
         id?: string;
         // Present when media_product_type is "AD": the ad copy gets its own
@@ -112,15 +143,56 @@ interface WebhookPayload {
   entry: WebhookEntry[];
 }
 
+/** Which provider a webhook payload belongs to, by its top-level object. */
+export function webhookProvider(object: unknown): "META" | "FACEBOOK_PAGE" | null {
+  if (object === "instagram") return "META";
+  if (object === "page") return "FACEBOOK_PAGE";
+  return null;
+}
+
+/**
+ * Facebook Page comments arrive on the "feed" field, which also reports posts,
+ * reactions, edits and removals. Only a newly added comment becomes an event;
+ * the Page's own comments are skipped like Instagram self-comments.
+ */
+function parsePageCommentEvent(
+  entry: WebhookEntry,
+  value: NonNullable<WebhookEntry["changes"]>[number]["value"]
+): WebhookCommentEvent | null {
+  if (value?.item !== "comment" || value.verb !== "add") return null;
+  const commentId = value.comment_id;
+  const mediaId = value.post_id;
+  if (!entry.id || !commentId || !mediaId) return null;
+
+  const from = value.from?.id;
+  if (from === entry.id) return null;
+
+  return {
+    instagramAccountId: entry.id,
+    commentId,
+    commentText: value.message ?? "",
+    commenterId: from ?? unknownCommenterId(commentId),
+    commenterName: value.from?.name,
+    mediaId,
+  };
+}
+
 export function parseCommentEvents(payload: WebhookPayload): WebhookCommentEvent[] {
   const events: WebhookCommentEvent[] = [];
 
-  if (payload.object !== "instagram") {
+  if (!isSupportedObject(payload)) {
     return events;
   }
 
   for (const entry of payload.entry ?? []) {
     for (const change of entry.changes ?? []) {
+      if (payload.object === "page") {
+        if (change.field !== "feed") continue;
+        const event = parsePageCommentEvent(entry, change.value);
+        if (event) events.push(event);
+        continue;
+      }
+
       if (change.field !== "comments") continue;
 
       const value = change.value;
@@ -170,7 +242,7 @@ export function parsePostbackEvents(
 ): WebhookPostbackEvent[] {
   const events: WebhookPostbackEvent[] = [];
 
-  if (payload.object !== "instagram") return events;
+  if (!isSupportedObject(payload)) return events;
 
   for (const entry of payload.entry ?? []) {
     for (const messaging of entry.messaging ?? []) {
@@ -209,7 +281,7 @@ export function parseMessageEvents(
 ): WebhookMessageEvent[] {
   const events: WebhookMessageEvent[] = [];
 
-  if (payload.object !== "instagram") return events;
+  if (!isSupportedObject(payload)) return events;
 
   for (const entry of payload.entry ?? []) {
     for (const messaging of entry.messaging ?? []) {
@@ -248,7 +320,7 @@ export function parseMessageEvents(
 export function parseReadEvents(payload: WebhookPayload): WebhookReadEvent[] {
   const events: WebhookReadEvent[] = [];
 
-  if (payload.object !== "instagram") return events;
+  if (!isSupportedObject(payload)) return events;
 
   for (const entry of payload.entry ?? []) {
     for (const messaging of entry.messaging ?? []) {
