@@ -463,5 +463,8 @@
   "{name} Campaign Report": "{name} 活動報表",
   "{type} post": "{type} 貼文",
   "”": "」",
-  "← Campaigns": "← 返回活動列表"
+  "← Campaigns": "← 返回活動列表",
+  "Restricted access": "限制存取",
+  "Sign in": "登入",
+  "Sign in by email to manage your Facebook Pages.": "使用電子郵件登入，管理你的 Facebook 粉絲專頁。"
 }

@@ -1,10 +1,11 @@
 import { getI18n } from "@/lib/i18n/server";
 import Link from "next/link";
+import EntryShell from "@/components/entry-shell";
 
 export async function generateMetadata() {
   const { t } = await getI18n();
   return {
-    title: t("Check your email - OpenReply"),
+    title: `${t("Check your email")} · IPC Reply`,
     description: t("A sign-in link was sent to your email."),
   };
 }
@@ -12,26 +13,14 @@ export async function generateMetadata() {
 export default async function VerifyRequestPage() {
   const { t } = await getI18n();
   return (
-    <div className="min-h-screen flex items-center justify-center px-6">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-semibold text-foreground">
-            OpenReply
-          </h1>
-        </div>
-
-        <div className="panel rounded-xl p-8 text-center">
-          <h2 className="text-lg font-semibold mb-2">{t("Check your email")}</h2>
-          <p className="text-sm text-muted">
-            {t("We sent you a secure sign-in link. Open it on this device to continue.")}
-          </p>
-          <p className="mt-6 text-sm">
-            <Link href="/login" className="text-accent hover:underline">
-              {t("Back to sign in")}
-            </Link>
-          </p>
-        </div>
-      </div>
-    </div>
+    <EntryShell
+      eyebrow={t("Restricted access")}
+      title={t("Check your email")}
+      description={t("We sent you a secure sign-in link. Open it on this device to continue.")}
+    >
+      <Link href="/login" className="text-sm text-accent hover:text-accent-hover">
+        ← {t("Back to sign in")}
+      </Link>
+    </EntryShell>
   );
 }

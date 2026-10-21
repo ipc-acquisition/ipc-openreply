@@ -463,5 +463,8 @@
   "{name} Campaign Report": "Relatório da campanha {name}",
   "{type} post": "Publicação {type}",
   "”": "”",
-  "← Campaigns": "← Campanhas"
+  "← Campaigns": "← Campanhas",
+  "Restricted access": "Acesso restrito",
+  "Sign in": "Entrar",
+  "Sign in by email to manage your Facebook Pages.": "Entre com seu e-mail para gerenciar as Páginas do Facebook."
 }

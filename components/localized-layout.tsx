@@ -11,7 +11,7 @@ export default async function LocalizedLayout({
   const { locale } = await getI18n();
   return (
     <I18nProvider locale={locale}>
-      <div className="flex justify-end px-5 pt-4">
+      <div className="absolute right-4 top-3 z-10 sm:right-8">
         <LanguageSwitcher />
       </div>
       {children}

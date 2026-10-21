@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { I18n } from "@/lib/i18n";
 import { getI18n } from "@/lib/i18n/server";
-import Link from "next/link";
+import BrandLogo from "@/components/brand-logo";
 import { notFound } from "next/navigation";
 import { getCampaignReportBySlug } from "@/lib/reports/data";
 
@@ -32,7 +32,7 @@ function MetricCard({
       <p className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
         {label}
       </p>
-      <p className="mt-3 text-3xl font-black tracking-tight text-foreground">
+      <p className="mt-3 text-3xl font-bold tracking-tight tracking-tight text-foreground">
         {value}
       </p>
       <p className="mt-2 text-xs leading-5 text-muted">{helper}</p>
@@ -81,10 +81,10 @@ export default async function ReportPage({ params }: ReportPageProps) {
         <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
             <div>
-              <p className="text-sm font-bold uppercase tracking-wide text-accent">
+              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-accent">
                 {t("Client campaign report")}
               </p>
-              <h1 className="mt-4 max-w-3xl text-4xl font-black leading-tight text-foreground sm:text-5xl">
+              <h1 className="mt-4 max-w-3xl text-4xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-5xl">
                 {report.campaign.name}
               </h1>
               <div className="mt-5 flex flex-wrap items-center gap-2 text-sm text-muted">
@@ -111,12 +111,9 @@ export default async function ReportPage({ params }: ReportPageProps) {
                 {t("Generated")} {formatDate(report.generatedAt, { locale, t })}
               </p>
               {report.branded && (
-                <Link
-                  href="/"
-                  className="mt-4 inline-flex items-center justify-center rounded border border-accent/30 bg-accent/10 px-3 py-2 text-xs font-semibold text-accent transition hover:border-accent/50"
-                >
-                  {t("Powered by OpenReply")}
-                </Link>
+                <p className="mt-5">
+                  <BrandLogo product="" />
+                </p>
               )}
             </div>
           </div>
@@ -156,7 +153,7 @@ export default async function ReportPage({ params }: ReportPageProps) {
           <section className="border border-border bg-surface p-4 sm:p-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h2 className="text-xl font-black text-foreground">
+                <h2 className="text-xl font-semibold tracking-tight text-foreground">
                   {t("Last 7 Days")}
                 </h2>
                 <p className="mt-2 text-sm text-muted">
@@ -206,7 +203,7 @@ export default async function ReportPage({ params }: ReportPageProps) {
 
           <aside className="space-y-6">
             <section className="border border-border bg-surface p-4 sm:p-6">
-              <h2 className="text-xl font-black text-foreground">{t("Top Keywords")}</h2>
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">{t("Top Keywords")}</h2>
               <div className="mt-5 space-y-3">
                 {report.topKeywords.length === 0 && (
                   <p className="text-sm text-muted">
@@ -230,7 +227,7 @@ export default async function ReportPage({ params }: ReportPageProps) {
             </section>
 
             <section className="border border-border bg-surface p-4 sm:p-6">
-              <h2 className="text-xl font-black text-foreground">{t("Tracked Links")}</h2>
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">{t("Tracked Links")}</h2>
               <div className="mt-5 space-y-3">
                 {report.trackedLinks.length === 0 && (
                   <p className="text-sm text-muted">
@@ -256,7 +253,7 @@ export default async function ReportPage({ params }: ReportPageProps) {
         </div>
 
         <section className="mt-8 border border-border bg-surface p-4 sm:p-6">
-          <h2 className="text-xl font-black text-foreground">{t("Campaign Setup")}</h2>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">{t("Campaign Setup")}</h2>
           <div className="mt-5 grid gap-5 md:grid-cols-3">
             <div>
               <p className="font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
@@ -303,7 +300,7 @@ export default async function ReportPage({ params }: ReportPageProps) {
 
         {report.branded && (
           <footer className="mt-8 border-t border-border pt-6 text-center text-xs text-muted">
-            {t("Built with OpenReply, the Instagram comment-to-DM campaign OS.")}
+            <span className="eyebrow">© IPC</span>
           </footer>
         )}
       </section>
