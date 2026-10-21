@@ -77,6 +77,18 @@ export function LogsIcon(props: IconProps) {
   );
 }
 
+// Three chained bubbles: a message sequence (flows).
+export function FlowsIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 5.5h7v4H6l-2 1.5V9.5H3z" />
+      <path d="M10 12.5h7v4h-4l-2 1.5v-1.5h-1z" />
+      <path d="M10 7.5h3" />
+      <path d="M13.5 7.5v3" />
+    </Icon>
+  );
+}
+
 // Shield with a check: comment moderation.
 export function ModerationIcon(props: IconProps) {
   return (

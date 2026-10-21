@@ -22,6 +22,9 @@ const pageTitles: Record<string, StaticMessageKey> = {
   "/logs": "DM Logs",
   "/settings": "Settings",
   "/diagnostics": "Diagnostics",
+  "/moderation": "Moderation",
+  "/flows": "Flows",
+  "/flows/new": "New flow",
 };
 
 interface TopBarProps {
@@ -38,8 +41,10 @@ export default function TopBar({
   const { t } = useI18n();
   const pathname = usePathname();
   const title: StaticMessageKey = pageTitles[pathname] ?? (
-    pathname.endsWith("/edit") ? "Edit campaign"
-      : pathname.startsWith("/campaigns/") ? "Campaign details" : "Dashboard"
+    pathname.startsWith("/flows/")
+      ? pathname.endsWith("/edit") ? "Edit flow" : "Flow details"
+      : pathname.endsWith("/edit") ? "Edit campaign"
+        : pathname.startsWith("/campaigns/") ? "Campaign details" : "Dashboard"
   );
 
   return (
