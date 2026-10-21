@@ -46,3 +46,6 @@ next-env.d.ts
 
 # Local-only assets (public repo)
 saveweb2zip-*.zip
+
+# Claude Code local state (worktrees, launch config)
+.claude/

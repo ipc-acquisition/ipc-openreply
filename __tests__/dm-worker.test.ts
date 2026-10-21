@@ -122,6 +122,10 @@ vi.mock("@/lib/queue/client", () => ({
 }));
 
 const mockRefreshPageToken = vi.hoisted(() => vi.fn());
+const mockModerateComment = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/moderation/engine", () => ({
+  moderateComment: mockModerateComment,
+}));
 vi.mock("@/lib/facebook/page-token", () => ({
   refreshFacebookPageToken: mockRefreshPageToken,
 }));
@@ -249,6 +253,7 @@ beforeEach(() => {
     workspaceId: "workspace_123",
   });
   mockPrisma.operationalEvent.create.mockResolvedValue({});
+  mockModerateComment.mockResolvedValue({ blocked: false });
   mockDecryptToken.mockReturnValue("decrypted_token");
   mockMatchKeywords.mockReturnValue({ matched: true, matchedKeyword: "LINK" });
   mockReserveWorkspaceDMSend.mockResolvedValue({
@@ -1882,5 +1887,23 @@ describe("Facebook Page support in the worker", () => {
       )
     ).rejects.toBeInstanceOf(RateLimitError);
     expect(mockRefreshPageToken).not.toHaveBeenCalled();
+  });
+});
+
+describe("moderation gate in processComment", () => {
+  it("sends nothing for a comment that moderation hid", async () => {
+    mockModerateComment.mockResolvedValue({ blocked: true, logId: "log1", matchedKeyword: "fake" });
+    const processor = getProcessor();
+    await processor(createMockJob());
+    expect(mockModerateComment).toHaveBeenCalledWith(expect.objectContaining({ commentId: "comment_555" }));
+    expect(mockPrisma.automation.findMany).not.toHaveBeenCalled();
+    expect(mockSendPrivateReply).not.toHaveBeenCalled();
+    expect(mockPrisma.dmLog.upsert).not.toHaveBeenCalled();
+  });
+
+  it("runs campaigns normally when moderation lets the comment through", async () => {
+    const processor = getProcessor();
+    await processor(createMockJob());
+    expect(mockSendPrivateReply).toHaveBeenCalledTimes(1);
   });
 });

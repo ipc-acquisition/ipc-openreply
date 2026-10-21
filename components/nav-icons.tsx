@@ -77,6 +77,16 @@ export function LogsIcon(props: IconProps) {
   );
 }
 
+// Shield with a check: comment moderation.
+export function ModerationIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M10 2.5l6 2.3v4.7c0 3.6-2.5 6.6-6 7.9-3.5-1.3-6-4.3-6-7.9V4.8z" />
+      <path d="M7.4 10.1l1.8 1.8 3.6-3.8" />
+    </Icon>
+  );
+}
+
 export function SettingsIcon(props: IconProps) {
   return (
     <Icon {...props}>

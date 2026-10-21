@@ -77,6 +77,8 @@ model Workspace {
 
   zernioConnection  ZernioConnection?
   facebookPageConnection FacebookPageConnection?
+  moderationRules   ModerationRule[]
+  moderationLogs    ModerationLog[]
   members           WorkspaceMember[]
   invitations       WorkspaceInvitation[]
   instagramAccounts InstagramAccount[]
@@ -145,6 +147,8 @@ model InstagramAccount {
   dmLogs      DmLog[]
   linkClicks  LinkClick[]
   followerSnapshots FollowerSnapshot[]
+  moderationRules   ModerationRule[]
+  moderationLogs    ModerationLog[]
 
   @@index([workspaceId])
 }
@@ -439,6 +443,72 @@ model FacebookPageConnection {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// --- Comment moderation -----------------------------------------------------
+// A rule is a word list for one Page: a comment containing any of the words is
+// hidden before any campaign runs for it. Rules are the first, cheapest stage
+// of the moderation pipeline; heuristics and AI classification plug into the
+// same log later.
+model ModerationRule {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  instagramAccountId String
+  name               String
+  keywords           String[] @default([])
+  // Off by default: moderation errs on the side of hiding, so "fake" also
+  // catches "fakee" and "fakes".
+  wholeWordMatch     Boolean  @default(false)
+  action             ModerationAction @default(HIDE)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  workspace        Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  instagramAccount InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
+  logs             ModerationLog[]
+
+  @@index([workspaceId])
+  @@index([instagramAccountId])
+}
+
+// One row per moderated comment. Created BEFORE the Meta call as the delivery
+// claim (commentId is unique), then updated with the outcome.
+model ModerationLog {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  instagramAccountId String
+  ruleId             String?
+  commentId          String   @unique
+  mediaId            String?
+  commenterId        String
+  commenterName      String?
+  commentText        String
+  matchedKeyword     String?
+  action             ModerationAction
+  actionStatus       ModerationActionStatus @default(PENDING)
+  error              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  workspace        Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  instagramAccount InstagramAccount @relation(fields: [instagramAccountId], references: [id], onDelete: Cascade)
+  rule             ModerationRule?  @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+
+  @@index([instagramAccountId, createdAt])
+  @@index([workspaceId])
+}
+
+enum ModerationAction {
+  HIDE
+  DELETE
+}
+
+enum ModerationActionStatus {
+  PENDING
+  DONE
+  FAILED
+  UNDONE
 }
 
 // Claims persist independently of BullMQ retention so old taps never resend.

@@ -15,6 +15,7 @@ import {
   DiagnosticsIcon,
   InboxIcon,
   LogsIcon,
+  ModerationIcon,
   OverviewIcon,
   SettingsIcon,
 } from "@/components/nav-icons";
@@ -27,6 +28,7 @@ const navItems = [
   { label: "Overview", href: "/overview", Icon: OverviewIcon },
   { label: "Inbox", href: "/inbox", Icon: InboxIcon },
   { label: "Campaigns", href: "/campaigns", Icon: CampaignsIcon },
+  { label: "Moderation", href: "/moderation", Icon: ModerationIcon },
   { label: "DM Logs", href: "/logs", Icon: LogsIcon },
   { label: "Settings", href: "/settings", Icon: SettingsIcon },
   { label: "Diagnostics", href: "/diagnostics", Icon: DiagnosticsIcon },

@@ -21,6 +21,7 @@ import {
 } from "./client";
 import { prisma } from "@/lib/db/client";
 import { refreshFacebookPageToken } from "@/lib/facebook/page-token";
+import { moderateComment } from "@/lib/moderation/engine";
 import {
   MetaApiError,
   RateLimitError,
@@ -289,6 +290,17 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
     originalMediaId,
   } = job.data;
   const requeueAttempt = job.data.requeueAttempt ?? 0;
+
+  // Moderation runs first: a comment that matches a hide rule is hidden and
+  // gets no private reply or public reply from any campaign.
+  const moderation = await moderateComment(job.data);
+  if (moderation.blocked) {
+    console.log(
+      `[DM Worker] Comment ${commentId} hidden by moderation` +
+        (moderation.matchedKeyword ? ` (matched "${moderation.matchedKeyword}")` : "")
+    );
+    return;
+  }
 
   const automations = await prisma.automation.findMany({
     where: {
