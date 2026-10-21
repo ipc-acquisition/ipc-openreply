@@ -47,6 +47,7 @@ interface LoadedCampaign {
   followPromptMessage: string | null;
   followPromptButtonLabel: string | null;
   followUpEnabled: boolean;
+  flowId?: string | null;
   followUpMessage: string | null;
   followUpDelayMinutes: number | null;
   publicReplyEnabled: boolean;
@@ -180,6 +181,10 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
   const [followPromptButtonLabel, setFollowPromptButtonLabel] =
     useState("i'm following");
   const [followUpEnabled, setFollowUpEnabled] = useState(false);
+  // Flow to start once the person answers the private reply (flows replace
+  // the old opening DM / follow-up pair).
+  const [flowId, setFlowId] = useState("");
+  const [flows, setFlows] = useState<{ id: string; name: string; isActive: boolean }[]>([]);
   const [followUpMessage, setFollowUpMessage] = useState("");
   const [followUpDelayMinutes, setFollowUpDelayMinutes] = useState(0);
 
@@ -288,6 +293,7 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
           c.followPromptButtonLabel ?? "i'm following"
         );
         setFollowUpEnabled(c.followUpEnabled ?? false);
+        setFlowId(c.flowId ?? "");
         setFollowUpMessage(c.followUpMessage ?? "");
         setFollowUpDelayMinutes(c.followUpDelayMinutes ?? 0);
       })
@@ -319,6 +325,16 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
       cancelled = true;
     };
   }, [selectedAccountId, mode, campaignId]);
+
+  useEffect(() => {
+    if (!selectedAccountId) return;
+    fetch(`/api/flows?instagramAccountId=${encodeURIComponent(selectedAccountId)}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((payload) => {
+        if (payload.success) setFlows(payload.data);
+      })
+      .catch(console.error);
+  }, [selectedAccountId]);
 
   // Prefill the editable fields from one queued import row. The reel is left
   // unset so the user picks it per row.
@@ -429,6 +445,7 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
       followUpEnabled,
       followUpMessage: followUpEnabled ? followUpMessage.trim() : "",
       followUpDelayMinutes: followUpEnabled ? followUpDelayMinutes : 0,
+      flowId: flowId || null,
       isActive: activeValue,
     };
 
@@ -720,23 +737,8 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
           >
             {t("any word")}
           </Radio>
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5">
-            <span className="text-sm text-foreground">
-              {t("also reply when someone DMs")}{" "}
-              {matchMode === "any" ? t("anything") : t("these words")}
-            </span>
-            <Toggle
-              on={dmTriggerEnabled}
-              onToggle={() => setDmTriggerEnabled(!dmTriggerEnabled)}
-            />
-          </div>
-          {dmTriggerEnabled && (
-            <p className="text-xs text-muted">
-              {matchMode === "any"
-                ? t("Every DM to this account gets the reply below — use with care.")
-                : t("A DM containing any of these words gets the same reply, no comment needed.")}
-            </p>
-          )}
+          {/* The "also reply when someone DMs" trigger is superseded by Flows;
+              dmTriggerEnabled is kept on existing campaigns but not offered. */}
           <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
             <span className="text-sm text-foreground">
               {t("reply to their comments under the post")}
@@ -795,40 +797,9 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
           )}
         </Section>
 
-        <Section title={t("They will get")}>
-          <div className="rounded-lg border border-border p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-foreground">{t("an opening DM")}</span>
-              <Toggle
-                on={openingDmEnabled}
-                onToggle={() => setOpeningDmEnabled(!openingDmEnabled)}
-              />
-            </div>
-            {openingDmEnabled && (
-              <div className="mt-3 space-y-2">
-                <textarea
-                  value={openingDmMessage}
-                  onChange={(e) => setOpeningDmMessage(e.target.value)}
-                  placeholder={t("Hey there! I'm so happy you're here 😊")}
-                  rows={3}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none resize-none"
-                  maxLength={1000}
-                />
-                <input
-                  value={openingDmButtonLabel}
-                  onChange={(e) => setOpeningDmButtonLabel(e.target.value)}
-                  placeholder={t("Send me the link")}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none"
-                  maxLength={64}
-                />
-              </div>
-            )}
-          </div>
-          {/* Follow-gating is not offered: Facebook Pages expose no follow
-              status, and the worker ignores requireFollow for them
-              (providerCapabilities.followGate). The state stays so existing
-              campaigns round-trip unchanged. */}
-        </Section>
+        {/* Opening DM and follow-gating are not offered any more: a
+            comment-to-DM sends one private reply, and anything after the
+            person's answer is a Flow. Existing campaigns keep their values. */}
 
         <Section title={t("And then, they will get")}>
           <div className="rounded-lg border border-border p-3 space-y-2">
@@ -896,52 +867,29 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
               {"{link}"} {t("inserts the tracked link;")} {"{username}"} {t("personalizes.")}
             </p>
           </div>
-          <div className="mt-3 rounded-lg border border-border p-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-foreground">
-                {t("a follow-up thank-you message")}
-              </span>
-              <Toggle
-                on={followUpEnabled}
-                onToggle={() => setFollowUpEnabled(!followUpEnabled)}
-              />
-            </div>
-            {followUpEnabled && (
-              <div className="mt-3 space-y-2">
-                <textarea
-                  value={followUpMessage}
-                  onChange={(e) => setFollowUpMessage(e.target.value)}
-                  placeholder={t("Btw just wanted to say thanks for following me, I appreciate the support 🙌")}
-                  rows={3}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none resize-none"
-                  maxLength={1000}
-                />
-                <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
-                  <span className="text-xs text-muted">{t("Send it")}</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={1440}
-                    value={followUpDelayMinutes}
-                    onChange={(e) =>
-                      setFollowUpDelayMinutes(
-                        Math.max(0, Math.min(1440, Math.floor(Number(e.target.value) || 0)))
-                      )
-                    }
-                    className="w-20 rounded-lg border border-border bg-background px-2 py-1 text-sm text-foreground focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none"
-                  />
-                  <span className="text-xs text-muted">
-                    {t("minutes after the link")}
-                  </span>
-                </div>
-                <p className="text-xs text-muted">
-                  {followUpDelayMinutes > 0
-                    ? t("Sent {minutes} min after they tap through.", { minutes: followUpDelayMinutes })
-                    : t("Sent right after they tap through.")}
-                  {" {username}"} {t("personalizes it. Max 24 hours, to stay inside Instagram's messaging window.")}
-                </p>
-              </div>
-            )}
+
+        </Section>
+
+        <Section title={t("After they reply")}>
+          <div className="rounded-lg border border-border p-3 space-y-2">
+            <label className="flex flex-col gap-2 text-sm">
+              <span className="text-sm text-foreground">{t("Start this flow")}</span>
+              <select
+                value={flowId}
+                onChange={(e) => setFlowId(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent/60 focus:outline-none"
+              >
+                <option value="">{t("No flow")}</option>
+                {flows.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}{f.isActive ? "" : ` (${t("Paused")})`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="text-xs text-muted">
+              {t("Flows run inside the 24h window the reply opens. Manage them in Flows.")}
+            </p>
           </div>
         </Section>
       </div>

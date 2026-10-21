@@ -69,6 +69,7 @@ const createAutomationSchema = z
     secondaryButtonLabel: z.string().max(20).optional().nullable(),
     isActive: z.boolean().optional().default(true),
     wholeWordMatch: z.boolean().optional().default(true),
+    flowId: z.string().min(1).optional().nullable(),
   })
   // A campaign must target a specific post, any post, or the next reel.
   .refine(
@@ -115,6 +116,7 @@ const updateAutomationSchema = z.object({
   publicReplyMessages: z.array(z.string().max(1000)).max(10).optional(),
   isActive: z.boolean().optional(),
   wholeWordMatch: z.boolean().optional(),
+  flowId: z.string().min(1).optional().nullable(),
   reportShareEnabled: z.boolean().optional(),
   // Empty string clears the tracked link; a URL updates/creates it; undefined
   // leaves it unchanged.
@@ -151,6 +153,7 @@ export async function GET(request: NextRequest) {
       instagramAccount: {
         select: { username: true, instagramId: true },
       },
+      flow: { select: { id: true, name: true } },
       _count: {
         select: { dmLogs: true },
       },
@@ -350,6 +353,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (parsed.data.flowId) {
+    const flow = await prisma.flow.findFirst({
+      where: { id: parsed.data.flowId, workspaceId, instagramAccountId: instagramAccount.id },
+      select: { id: true },
+    });
+    if (!flow) {
+      return NextResponse.json(
+        { success: false, error: "Flow not found for this account" },
+        { status: 400 }
+      );
+    }
+  }
+
   const linkCreates = buildInitialCampaignLinks({
     workspaceId,
     primaryUrl: parsed.data.trackedDestinationUrl,
@@ -418,6 +434,7 @@ export async function POST(request: NextRequest) {
       workspaceId,
       instagramAccountId: instagramAccount.id,
       reportShareSlug: generateReportShareSlug(),
+      flowId: parsed.data.flowId ?? null,
       ...(linkCreates.length > 0
         ? { trackedLinks: { create: linkCreates } }
         : {}),
@@ -490,6 +507,19 @@ export async function PATCH(request: NextRequest) {
     secondaryButtonLabel,
     ...automationData
   } = parsed.data;
+
+  if (automationData.flowId) {
+    const flow = await prisma.flow.findFirst({
+      where: { id: automationData.flowId, workspaceId, instagramAccountId: existing.instagramAccountId },
+      select: { id: true },
+    });
+    if (!flow) {
+      return NextResponse.json(
+        { success: false, error: "Flow not found for this account" },
+        { status: 400 }
+      );
+    }
+  }
 
   // Keep dependent fields consistent: any-word clears keywords; a disabled
   // opening DM clears its message and button.

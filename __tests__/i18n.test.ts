@@ -66,7 +66,8 @@ describe("interface translations", () => {
 
   it("renders Brazilian Portuguese with interpolation and display labels", () => {
     const { t, label } = createI18n("pt-BR");
-    expect(t("Campaigns")).toBe("Campanhas");
+    // The Pages fork labels campaigns "Comment-to-DM" in pt-BR.
+    expect(t("Campaigns")).toBe("Comment-to-DM");
     expect(t("Settings")).toBe("Configurações");
     expect(t("{count} connected accounts", { count: 2 })).toBe(
       ptBR["{count} connected accounts"].replace("{count}", "2"),

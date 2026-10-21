@@ -33,6 +33,7 @@ interface Campaign {
   followPromptMessage: string | null;
   followPromptButtonLabel: string | null;
   followUpEnabled: boolean;
+  flow?: { id: string; name: string } | null;
   followUpMessage: string | null;
   followUpDelayMinutes: number | null;
   publicReplyEnabled: boolean;
@@ -278,6 +279,12 @@ export default function CampaignDetailPage() {
                   </p>
                 </div>
               ))}
+          </Summary>
+        )}
+
+        {campaign.flow && (
+          <Summary title={t("After they reply")}>
+            <p className="text-sm text-foreground">{campaign.flow.name}</p>
           </Summary>
         )}
 
