@@ -25,3 +25,19 @@ durable postback claim so redelivering the same tap cannot send it again.
 
 No campaign is paused by this policy. New comments continue through the normal
 flow. No schema migration is required.
+
+## Webhooks while Redis is down
+
+The webhook route persists every payload in `WebhookEvent` before enqueueing,
+and enqueues through a fail-fast Redis connection bounded by
+`WEBHOOK_ENQUEUE_TIMEOUT_MS` (default 5s). If Redis does not answer in time the
+row is marked `NOT_ENQUEUED` and Meta still gets a 200, so it never retries or
+disables the subscription over an outage on our side. A database failure before
+the row exists still answers 500, so Meta redelivers.
+
+On boot and on every poll the worker replays `NOT_ENQUEUED` rows, and `PENDING`
+rows older than five minutes (a request that died mid-enqueue), from the last
+`WEBHOOK_REPLAY_WINDOW_HOURS` (default 24). Older rows are marked `FAILED`.
+Replays reuse the same deterministic job ids, and Messenger replies claim their
+`DmLog` row (`dm:<mid>`) before calling Meta, exactly like comment DMs, so a
+payload enqueued twice still sends once.

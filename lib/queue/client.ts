@@ -4,7 +4,7 @@
  * Provides the DM processing queue and Redis connection for BullMQ.
  */
 
-import { Queue } from "bullmq";
+import { Queue, type DefaultJobOptions } from "bullmq";
 import Redis from "ioredis";
 
 let connection: Redis | null = null;
@@ -87,27 +87,75 @@ export const POSTBACK_JOB_NAME = "process-postback";
 export const FOLLOWUP_JOB_NAME = "process-followup";
 export const MESSAGE_JOB_NAME = "process-message";
 
+const DM_QUEUE_NAME = "dm-processing";
+
+const DM_JOB_OPTIONS: DefaultJobOptions = {
+  removeOnComplete: { count: 1000 }, // Keep last 1000 completed jobs
+  // Clear failed jobs shortly after they exhaust retries. Job ids are
+  // deterministic (comment_<acct>_<id>), so a retained failed job would
+  // block the polling reconciler from ever retrying that comment. Clearing
+  // them lets a later sweep re-enqueue and try again once a transient
+  // failure (e.g. an Instagram rate-limit window) has passed. Failure
+  // detail is still preserved in DmLog.
+  removeOnFail: { age: 300, count: 2000 },
+  attempts: 3,
+  backoff: {
+    type: "custom",
+  },
+};
+
 let dmQueue: Queue<DmQueueJob> | null = null;
 
 export function getDMQueue(): Queue<DmQueueJob> {
   if (!dmQueue) {
-    dmQueue = new Queue<DmQueueJob>("dm-processing", {
+    dmQueue = new Queue<DmQueueJob>(DM_QUEUE_NAME, {
       connection: getRedisConnection(),
-      defaultJobOptions: {
-        removeOnComplete: { count: 1000 }, // Keep last 1000 completed jobs
-        // Clear failed jobs shortly after they exhaust retries. Job ids are
-        // deterministic (comment_<acct>_<id>), so a retained failed job would
-        // block the polling reconciler from ever retrying that comment. Clearing
-        // them lets a later sweep re-enqueue and try again once a transient
-        // failure (e.g. an Instagram rate-limit window) has passed. Failure
-        // detail is still preserved in DmLog.
-        removeOnFail: { age: 300, count: 2000 },
-        attempts: 3,
-        backoff: {
-          type: "custom",
-        },
-      },
+      defaultJobOptions: DM_JOB_OPTIONS,
     });
   }
   return dmQueue;
+}
+
+// ─── Webhook producer ───────────────────────────────────────────────────────────
+
+let webhookConnection: Redis | null = null;
+let webhookQueue: Queue<DmQueueJob> | null = null;
+
+/**
+ * The same queue, on a connection of its own for the webhook route. The shared
+ * connection waits forever for Redis (maxRetriesPerRequest: null, which the
+ * worker needs), so an outage would hang the route until the function timed
+ * out. This one fails fast instead; the caller still bounds the wait, because
+ * BullMQ itself waits for the connection to become ready.
+ */
+export function getWebhookQueue(): Queue<DmQueueJob> {
+  if (!webhookQueue) {
+    webhookConnection = new Redis(process.env.REDIS_URL!, {
+      maxRetriesPerRequest: 1,
+      enableOfflineQueue: false,
+      connectTimeout: 3_000,
+    });
+    // Without a listener ioredis reports every failed reconnect as unhandled.
+    webhookConnection.on("error", () => {});
+    webhookQueue = new Queue<DmQueueJob>(DM_QUEUE_NAME, {
+      connection: webhookConnection,
+      defaultJobOptions: DM_JOB_OPTIONS,
+    });
+    // One line per failed attempt instead of BullMQ's default stack trace.
+    webhookQueue.on("error", (error) =>
+      console.error("[Webhook queue] Redis error:", error.message)
+    );
+  }
+  return webhookQueue;
+}
+
+/**
+ * Drops the webhook producer after an enqueue timed out. Disconnecting stops
+ * ioredis from reconnecting, so an add still waiting for Redis never lands
+ * later behind the replay, and the next request starts from a fresh connection.
+ */
+export function resetWebhookQueue(): void {
+  webhookConnection?.disconnect();
+  webhookConnection = null;
+  webhookQueue = null;
 }

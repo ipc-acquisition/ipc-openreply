@@ -2,6 +2,7 @@ import { createDMWorker } from "@/lib/queue/dm-worker";
 import { recordWorkerHeartbeat } from "@/lib/ops/worker-health";
 import { reconcileComments } from "@/lib/polling/comment-reconciler";
 import { attachPendingNextReels } from "@/lib/automation/attach-next-reel";
+import { replayUnqueuedWebhookEvents } from "@/lib/queue/process-webhook";
 import os from "node:os";
 
 const worker = createDMWorker();
@@ -32,6 +33,17 @@ void heartbeat();
 const heartbeatTimer = setInterval(() => void heartbeat(), HEARTBEAT_INTERVAL_MS);
 
 async function poll() {
+  // Webhook payloads the route persisted while Redis was unreachable. Messenger
+  // messages and postbacks have no other recovery path.
+  try {
+    const replay = await replayUnqueuedWebhookEvents();
+    if (replay.replayed > 0 || replay.failed > 0 || replay.expired > 0) {
+      console.log("[DM Worker] Webhook replay:", replay);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("[DM Worker] Webhook replay failed:", message);
+  }
   try {
     const attached = await attachPendingNextReels();
     if (attached.bound > 0 || attached.failedAccounts > 0) {
