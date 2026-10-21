@@ -4,7 +4,9 @@ function instagramGraphBase() {
   return `https://graph.instagram.com/${getMetaGraphApiVersion()}`;
 }
 
-function facebookGraphBase() {
+// Shared with lib/meta/page-client.ts, which talks to the Facebook Graph API
+// with Page tokens but reports errors through the same classes below.
+export function facebookGraphBase() {
   return `https://graph.facebook.com/${getMetaGraphApiVersion()}`;
 }
 
@@ -108,7 +110,7 @@ interface TokenResponse {
   expires_in?: number;
 }
 
-async function handleResponse<T>(response: Response): Promise<T> {
+export async function handleResponse<T>(response: Response): Promise<T> {
   const data = await response.json();
 
   if (!response.ok || (data as GraphApiError).error) {
