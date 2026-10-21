@@ -6,10 +6,13 @@ import { canManageWorkspace, getCurrentWorkspaceContext } from "@/lib/workspace-
 
 export const dynamic = "force-dynamic";
 
+// Word lists are meant to be big (thousands of spam terms); matching is a
+// substring scan over normalised text, so the cap only guards against a
+// pasted file by mistake.
 const keywordList = z
-  .array(z.string().trim().min(1).max(60))
+  .array(z.string().trim().min(1).max(80))
   .min(1)
-  .max(200)
+  .max(5000)
   .transform((words) => Array.from(new Set(words)));
 
 const createRuleSchema = z.object({

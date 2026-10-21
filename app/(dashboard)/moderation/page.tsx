@@ -80,6 +80,29 @@ export default function ModerationPage() {
   const [words, setWords] = useState("");
   const [wholeWord, setWholeWord] = useState(false);
 
+  // Inline editor for one existing rule at a time.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editWords, setEditWords] = useState("");
+  const [editWholeWord, setEditWholeWord] = useState(false);
+
+  function startEditing(rule: Rule) {
+    setEditingId(rule.id);
+    setEditName(rule.name);
+    setEditWords(rule.keywords.join(", "));
+    setEditWholeWord(rule.wholeWordMatch);
+  }
+
+  async function saveEditing(rule: Rule) {
+    const keywords = parseWords(editWords);
+    if (!editName.trim() || keywords.length === 0) return;
+    const ok = await call(`edit:${rule.id}`, `/api/moderation/rules?id=${rule.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name: editName.trim(), keywords, wholeWordMatch: editWholeWord }),
+    });
+    if (ok) setEditingId(null);
+  }
+
   const refresh = useCallback(async () => {
     const params = selectedAccountId ? `?instagramAccountId=${encodeURIComponent(selectedAccountId)}` : "";
     const [rulesRes, logsRes] = await Promise.all([
@@ -253,6 +276,55 @@ export default function ModerationPage() {
               key={rule.id}
               className="panel rounded p-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
             >
+              {editingId === rule.id ? (
+                <form
+                  className="min-w-0 flex-1 space-y-3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void saveEditing(rule);
+                  }}
+                >
+                  <input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    maxLength={100}
+                    required
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent/40 focus:outline-none"
+                  />
+                  <textarea
+                    value={editWords}
+                    onChange={(e) => setEditWords(e.target.value)}
+                    rows={6}
+                    required
+                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-accent/40 focus:outline-none resize-y"
+                  />
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <label className="flex items-center gap-3 text-sm text-foreground">
+                      <Toggle on={editWholeWord} onToggle={() => setEditWholeWord(!editWholeWord)} />
+                      {t("Whole words only")}
+                    </label>
+                    <span className="text-xs text-muted">
+                      {t("{count} words", { count: parseWords(editWords).length })}
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                        className="rounded border border-border px-3 py-1.5 text-xs font-medium text-muted hover:text-foreground"
+                      >
+                        {t("Cancel")}
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={busy !== null || !editName.trim() || parseWords(editWords).length === 0}
+                        className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                      >
+                        {busy === `edit:${rule.id}` ? t("Saving…") : t("Save changes")}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              ) : (
               <div className="min-w-0 space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-semibold text-foreground">{rule.name}</p>
@@ -264,18 +336,41 @@ export default function ModerationPage() {
                   >
                     {rule.isActive ? t("Active") : t("Paused")}
                   </span>
-                  <span className="text-xs text-muted">{t("{count} hidden", { count: rule._count.logs })}</span>
+                  <span className="text-xs text-muted">{t("{count} words", { count: rule.keywords.length })}</span>
+                  <span className="text-xs text-muted">· {t("{count} hidden", { count: rule._count.logs })}</span>
                   {rule.wholeWordMatch && <span className="text-xs text-muted">· {t("Whole words only")}</span>}
                 </div>
+                {/* Lists can run into the thousands; chips beyond the first
+                    few dozen would only slow the page down. */}
                 <div className="flex flex-wrap gap-1.5">
-                  {rule.keywords.map((word) => (
+                  {rule.keywords.slice(0, 30).map((word) => (
                     <span key={word} className="rounded-full border border-border px-2 py-0.5 text-xs text-foreground">
                       {word}
                     </span>
                   ))}
+                  {rule.keywords.length > 30 && (
+                    <button
+                      type="button"
+                      onClick={() => startEditing(rule)}
+                      className="rounded-full px-2 py-0.5 text-xs text-muted underline underline-offset-4 hover:text-foreground"
+                    >
+                      {t("+ {count} more words", { count: rule.keywords.length - 30 })}
+                    </button>
+                  )}
                 </div>
               </div>
+              )}
               <div className="flex shrink-0 items-center gap-3">
+                {editingId !== rule.id && (
+                  <button
+                    type="button"
+                    disabled={busy !== null}
+                    onClick={() => startEditing(rule)}
+                    className="rounded border border-border px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:border-border-hover hover:text-foreground disabled:opacity-50"
+                  >
+                    {t("Edit")}
+                  </button>
+                )}
                 <Toggle
                   on={rule.isActive}
                   disabled={busy !== null}
