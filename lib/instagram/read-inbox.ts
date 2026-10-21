@@ -1,6 +1,23 @@
 import * as meta from "@/lib/meta/client";
+import * as page from "@/lib/meta/page-client";
 import { zernioRequest } from "@/lib/zernio/client";
 import type { InstagramContext } from "./context";
+
+// Messenger participants have a display name rather than a handle; it is
+// exposed as `username` so the inbox renders it in the same place.
+function pageParticipant(p: page.PageParticipant): meta.InstagramParticipant {
+  return { id: p.id, username: p.name };
+}
+
+function pageMessage(m: page.PageMessage): meta.InstagramMessage {
+  return {
+    id: m.id,
+    created_time: m.created_time,
+    message: m.message,
+    from: m.from ? pageParticipant(m.from) : undefined,
+    to: m.to ? { data: m.to.data.map(pageParticipant) } : undefined,
+  };
+}
 
 export async function getConversations({
   context,
@@ -11,6 +28,17 @@ export async function getConversations({
 }): Promise<meta.InstagramConversation[]> {
   if (context.provider === "META")
     return meta.getConversations(context.accessToken, igUserId);
+  if (context.provider === "FACEBOOK_PAGE") {
+    const conversations = await page.getPageConversations(context.accessToken, context.pageId);
+    return conversations.map((c) => ({
+      id: c.id,
+      updated_time: c.updated_time,
+      participants: c.participants
+        ? { data: c.participants.data.map(pageParticipant) }
+        : undefined,
+      messages: c.messages ? { data: c.messages.data.map(pageMessage) } : undefined,
+    }));
+  }
   const result = await zernioRequest<{
     data: {
       id: string;
@@ -48,6 +76,10 @@ export async function getConversationMessages({
 }): Promise<meta.InstagramMessage[]> {
   if (context.provider === "META")
     return meta.getConversationMessages(context.accessToken, conversationId);
+  if (context.provider === "FACEBOOK_PAGE") {
+    const messages = await page.getPageConversationMessages(context.accessToken, conversationId);
+    return messages.map(pageMessage);
+  }
   const result = await zernioRequest<{
     messages: {
       id: string;

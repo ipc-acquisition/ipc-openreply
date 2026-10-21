@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import * as meta from "@/lib/meta/client";
+import * as page from "@/lib/meta/page-client";
 import {
   zernioRequest,
   ZernioApiError,
@@ -73,6 +74,10 @@ function linkButtons(buttons: meta.LinkButton[]): Button[] {
     .map(({ title, url }) => ({ type: "url", title: title.slice(0, 20), url }));
 }
 
+// Every send below picks the Page branch by context.pageId rather than the
+// instagramAccountId argument: for Pages they hold the same value, but the
+// context is the one that was decrypted together with the token.
+
 export async function sendPrivateReply({
   context,
   instagramAccountId,
@@ -93,6 +98,8 @@ export async function sendPrivateReply({
       commentId,
       message
     );
+  if (context.provider === "FACEBOOK_PAGE")
+    return page.sendPagePrivateReply(context.accessToken, context.pageId, commentId, message);
   return sendZernioMessage({ context, commentId, postId, text: message });
 }
 
@@ -117,6 +124,15 @@ export async function sendPrivateReplyWithButton({
     return meta.sendPrivateReplyWithButton(
       context.accessToken,
       instagramAccountId,
+      commentId,
+      text,
+      buttonTitle,
+      payload
+    );
+  if (context.provider === "FACEBOOK_PAGE")
+    return page.sendPagePrivateReplyWithButton(
+      context.accessToken,
+      context.pageId,
       commentId,
       text,
       buttonTitle,
@@ -155,6 +171,15 @@ export async function sendDirectMessageWithButton({
       buttonTitle,
       payload
     );
+  if (context.provider === "FACEBOOK_PAGE")
+    return page.sendPageMessageWithButton(
+      context.accessToken,
+      context.pageId,
+      userId,
+      text,
+      buttonTitle,
+      payload
+    );
   return sendZernioMessage({
     context,
     recipientId: userId,
@@ -186,6 +211,14 @@ export async function sendPrivateReplyWithLinkButton({
       text,
       buttons
     );
+  if (context.provider === "FACEBOOK_PAGE")
+    return page.sendPagePrivateReplyWithLinkButtons(
+      context.accessToken,
+      context.pageId,
+      commentId,
+      text,
+      buttons
+    );
   return sendZernioMessage({
     context,
     commentId,
@@ -213,6 +246,8 @@ export async function sendDirectMessage({
       userId,
       message
     );
+  if (context.provider === "FACEBOOK_PAGE")
+    return page.sendPageMessage(context.accessToken, context.pageId, userId, message);
   return sendZernioMessage({ context, recipientId: userId, text: message });
 }
 
@@ -233,6 +268,14 @@ export async function sendDirectMessageWithLinkButton({
     return meta.sendDirectMessageWithLinkButton(
       context.accessToken,
       instagramAccountId,
+      userId,
+      text,
+      buttons
+    );
+  if (context.provider === "FACEBOOK_PAGE")
+    return page.sendPageMessageWithLinkButtons(
+      context.accessToken,
+      context.pageId,
       userId,
       text,
       buttons
@@ -258,6 +301,8 @@ export async function sendCommentReply({
 }) {
   if (context.provider === "META")
     return meta.sendCommentReply(context.accessToken, commentId, message);
+  if (context.provider === "FACEBOOK_PAGE")
+    return page.sendPageCommentReply(context.accessToken, commentId, message);
   const result = await zernioRequest<{ data: { commentId: string } }>({
     apiKey: context.apiKey,
     path: `/inbox/comments/${encodeURIComponent(postId ?? commentId)}`,

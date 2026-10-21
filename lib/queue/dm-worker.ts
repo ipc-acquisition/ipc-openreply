@@ -36,6 +36,7 @@ import {
 import {
   createInstagramContext,
   hasInstagramCredentials,
+  providerCapabilities,
   type InstagramContext,
 } from "@/lib/instagram/provider";
 import { matchKeywords } from "@/lib/utils/keyword-matcher";
@@ -636,8 +637,13 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
     // (opening DM → follow gate → link). Without an opening DM, we check follow
     // status at comment time: confirmed followers get the link now, everyone
     // else gets the "follow me first" prompt (re-verified on tap).
+    // Providers without follow status (Facebook Pages) ignore the gate
+    // entirely: no prompt, and the opening button goes straight to reveal.
+    const requireFollow =
+      automation.requireFollow &&
+      providerCapabilities(accessToken.provider).followGate;
     let sendFollowPrompt = false;
-    if (automation.requireFollow && !useOpeningDm) {
+    if (requireFollow && !useOpeningDm) {
       const alreadyFollows = await getUserFollowStatus({
         context: accessToken,
         recipientId: commenterId,
@@ -677,7 +683,7 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
           buttonTitle: automation.openingDmButtonLabel as string,
           // The ":open" marker tells a tap here apart from the follow prompt's
           // own "I'm following" button, which sends the same prefix.
-          payload: `${automation.requireFollow ? "followcheck" : "reveal"}:${automation.id}:open`,
+          payload: `${requireFollow ? "followcheck" : "reveal"}:${automation.id}:open`,
           postId: mediaId,
         });
       } else if (sendFollowPrompt) {
@@ -969,7 +975,11 @@ async function processPostback(job: Job<ProcessPostbackJob>): Promise<void> {
   // be bypassable by just reading the DM and waiting. On a tap, following or
   // unverifiable (null) falls through and delivers the link — fail-open so a
   // real follower is never trapped.
-  if ((isFollowCheck || fallback) && automation.requireFollow) {
+  if (
+    (isFollowCheck || fallback) &&
+    automation.requireFollow &&
+    providerCapabilities(accessToken.provider).followGate
+  ) {
     const follows = await getUserFollowStatus({
       context: accessToken,
       recipientId: userId,
@@ -1403,7 +1413,10 @@ async function processMessage(job: Job<ProcessMessageJob>): Promise<void> {
     // the user has already claimed to follow; here it would hand the link to
     // anyone whose status the API happens not to resolve.
     let sendFollowPrompt = false;
-    if (automation.requireFollow) {
+    if (
+      automation.requireFollow &&
+      providerCapabilities(accessToken.provider).followGate
+    ) {
       const follows = await getUserFollowStatus({
         context: accessToken,
         recipientId: senderId,

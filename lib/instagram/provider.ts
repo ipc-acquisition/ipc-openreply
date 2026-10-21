@@ -12,6 +12,7 @@ export type {
   LinkButton,
 } from "@/lib/meta/client";
 export * from "./context";
+export * from "./capabilities";
 export * from "./send-messages";
 export * from "./read-content";
 export * from "./read-inbox";

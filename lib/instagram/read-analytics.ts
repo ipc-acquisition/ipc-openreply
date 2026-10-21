@@ -2,6 +2,11 @@ import * as meta from "@/lib/meta/client";
 import { zernioRequest } from "@/lib/zernio/client";
 import type { InstagramContext, ZernioContext } from "./context";
 
+// Facebook Pages expose none of these under Standard Access (see
+// lib/instagram/capabilities.ts). Each function answers the way its callers
+// already treat "unavailable": null for follow status and follower history,
+// PermissionError for insights.
+
 export async function getUserFollowStatus({
   context,
   recipientId,
@@ -11,6 +16,7 @@ export async function getUserFollowStatus({
 }): Promise<boolean | null> {
   if (context.provider === "META")
     return meta.getUserFollowStatus(context.accessToken, recipientId);
+  if (context.provider === "FACEBOOK_PAGE") return null;
   try {
     const result = await zernioRequest<{ isFollower: boolean | null }>({
       apiKey: context.apiKey,
@@ -33,6 +39,10 @@ export async function getMediaInsights({
 }): Promise<meta.InstagramMediaInsights> {
   if (context.provider === "META")
     return meta.getMediaInsights(context.accessToken, mediaId, metrics);
+  if (context.provider === "FACEBOOK_PAGE")
+    throw new meta.PermissionError(
+      "Post insights are not supported for Facebook Pages"
+    );
   const result = await zernioRequest<{
     platformAnalytics?: {
       platformPostId: string;

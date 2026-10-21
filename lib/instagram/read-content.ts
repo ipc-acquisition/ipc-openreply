@@ -1,4 +1,5 @@
 import * as meta from "@/lib/meta/client";
+import * as page from "@/lib/meta/page-client";
 import { zernioRequest } from "@/lib/zernio/client";
 import type { InstagramContext } from "./context";
 
@@ -9,6 +10,37 @@ type Comment = {
   from?: { id: string; username?: string };
   replies?: Comment[];
 };
+
+// Page comments carry the author's display name, not a handle; it goes into
+// `username` so the reconciler and {username} rendering keep working.
+function pageAuthor(from?: { id: string; name?: string }) {
+  return from ? { id: from.id, username: from.name } : undefined;
+}
+
+function pageCommentToInstagram(c: page.PageComment): meta.InstagramComment {
+  return {
+    id: c.id,
+    text: c.message ?? "",
+    timestamp: c.created_time,
+    from: pageAuthor(c.from),
+    replies: {
+      data: c.comments?.data?.map((r) => ({ id: r.id, from: pageAuthor(r.from) })),
+    },
+  };
+}
+
+function pagePostToMedia(p: page.PagePost): meta.InstagramMedia {
+  return {
+    id: p.id,
+    caption: p.message,
+    media_type: p.full_picture ? "IMAGE" : "STATUS",
+    timestamp: p.created_time,
+    permalink: p.permalink_url,
+    media_url: p.full_picture,
+    thumbnail_url: p.full_picture,
+    comments_count: p.comments?.summary?.total_count,
+  };
+}
 
 export async function getRecentMediaComments({
   context,
@@ -28,6 +60,15 @@ export async function getRecentMediaComments({
       sinceMs,
       max
     );
+  if (context.provider === "FACEBOOK_PAGE") {
+    const comments = await page.getRecentPagePostComments(
+      context.accessToken,
+      mediaId,
+      sinceMs,
+      max
+    );
+    return comments.map(pageCommentToInstagram);
+  }
   const results: meta.InstagramComment[] = [];
   const seen = new Set<string>();
   let cursor: string | undefined;
@@ -71,6 +112,10 @@ export async function getUserMedia({
 }): Promise<meta.InstagramMedia[]> {
   if (context.provider === "META")
     return meta.getUserMedia(context.accessToken, limit);
+  if (context.provider === "FACEBOOK_PAGE") {
+    const posts = await page.getPagePublishedPosts(context.accessToken, context.pageId, limit);
+    return posts.map(pagePostToMedia);
+  }
   const result = await zernioRequest<{
     posts: {
       id: string;
@@ -126,6 +171,17 @@ export async function getUserInfo({
   context: InstagramContext;
 }): Promise<meta.InstagramUser> {
   if (context.provider === "META") return meta.getUserInfo(context.accessToken);
+  if (context.provider === "FACEBOOK_PAGE") {
+    const info = await page.getPageInfo(context.accessToken, context.pageId);
+    const followers = info.followers_count ?? info.fan_count;
+    return {
+      id: info.id,
+      user_id: info.id,
+      username: info.name,
+      name: info.name,
+      ...(typeof followers === "number" ? { followers_count: followers } : {}),
+    };
+  }
   const result = await zernioRequest<{
     accounts: {
       _id: string;
