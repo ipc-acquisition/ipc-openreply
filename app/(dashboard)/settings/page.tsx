@@ -2,11 +2,12 @@
 
 import LanguageSwitcher from "@/components/language-switcher";
 import { useI18n } from "@/lib/i18n/provider";
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { AccountOption } from "@/components/account-select";
-import { ZernioConnection } from "@/components/zernio-connection";
 import { FacebookPagesConnection } from "@/components/facebook-pages-connection";
-import { InstagramConnectNotice } from "@/components/instagram-connect-notice";
+
+// Instagram (direct Meta app and Zernio) stays in the codebase but is no
+// longer offered here: the product runs on Facebook Pages only.
 
 interface SettingsData {
   workspace: {
@@ -51,7 +52,7 @@ interface WorkspaceMembersData {
 }
 
 export default function SettingsPage() {
-  const { t, label, locale } = useI18n();
+  const { t, label } = useI18n();
   const [data, setData] = useState<SettingsData | null>(null);
   const [membersData, setMembersData] = useState<WorkspaceMembersData | null>(
     null
@@ -78,20 +79,6 @@ export default function SettingsPage() {
     const res = await fetch("/api/workspace/members");
     const payload = await res.json();
     if (payload.success) setMembersData(payload.data);
-  }
-
-  async function disconnectInstagram(instagramAccountId: string) {
-    if (!confirm(t("Disconnect Instagram? Campaigns for this account will stop sending DMs."))) {
-      return;
-    }
-
-    setBusy(`disconnect:${instagramAccountId}`);
-    await fetch("/api/instagram/disconnect", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ instagramAccountId }),
-    });
-    window.location.reload();
   }
 
   async function inviteMember(event: React.FormEvent) {
@@ -128,20 +115,12 @@ export default function SettingsPage() {
     return <div className="panel rounded p-8 h-64" />;
   }
 
-  const accounts = data?.instagramAccounts ?? [];
   const canManageMembers =
     membersData?.currentUserRole === "OWNER" ||
     membersData?.currentUserRole === "ADMIN";
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">
-      {/* Surfaces the ?instagram= code the OAuth routes redirect back with.
-          Needs a Suspense boundary: useSearchParams in a prerendered client
-          page fails the production build without one. */}
-      <Suspense fallback={null}>
-        <InstagramConnectNotice />
-      </Suspense>
-
       <section className="panel rounded p-4 sm:p-6 space-y-3">
         <h2 className="text-base font-semibold">{t("Interface language")}</h2>
         <LanguageSwitcher />
@@ -149,89 +128,6 @@ export default function SettingsPage() {
       </section>
 
       <FacebookPagesConnection canManage={canManageMembers} />
-
-      <ZernioConnection canManage={canManageMembers} />
-
-      <section className="panel rounded p-4 sm:p-6">
-        <h2 className="text-base font-semibold mb-6">{t("Instagram Connection")}</h2>
-
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3 py-3 border-b border-border">
-            <div>
-              <p className="text-sm font-medium text-foreground">{t("Status")}</p>
-              <p className="text-xs text-muted mt-0.5">
-                {t("Comment webhooks and private replies depend on this connection.")}
-              </p>
-            </div>
-            <span
-              className={`px-3 py-1.5 rounded-full text-xs font-medium ${
-                accounts.length > 0
-                  ? "bg-success/10 text-success"
-                  : "bg-warning/10 text-warning"
-              }`}
-            >
-              {accounts.length > 0 ? t("Connected") : t("Not connected")}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between gap-3 py-3 border-b border-border">
-            <div>
-              <p className="text-sm font-medium text-foreground">{t("Accounts")}</p>
-              <p className="text-xs text-muted mt-0.5">
-                {t(accounts.length === 1 ? "{count} connected Instagram profile" : "{count} connected Instagram profiles", { count: accounts.length })}
-              </p>
-            </div>
-            <span className="text-sm text-muted">
-              {accounts.length > 0 ? t("{count} connected", { count: accounts.length }) : t("None")}
-            </span>
-          </div>
-
-          <div className="space-y-3 py-3">
-            {accounts.length === 0 && (
-              <p className="text-sm text-muted">
-                {t("Connect an Instagram professional account to launch campaigns.")}
-              </p>
-            )}
-            {accounts.map((account) => (
-              <div
-                key={account.id}
-                className="flex flex-col gap-3 rounded border border-border bg-surface/70 p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    @{account.username}
-                  </p>
-                  <p className="mt-1 text-xs text-muted">
-                    {account.provider === "ZERNIO" ? t("Connected via Zernio") : <>{t("Token expires")}{" "}
-                    {account.tokenExpiresAt
-                      ? new Date(account.tokenExpiresAt).toLocaleDateString(locale)
-                      : t("not available")}</>}{" "}
-                    · {account.webhookSubscribed ? t("Webhook ready") : t("Webhook pending")}
-                  </p>
-                </div>
-                <button
-                  onClick={() => disconnectInstagram(account.id)}
-                  disabled={busy === `disconnect:${account.id}`}
-                  className="inline-flex items-center justify-center rounded border border-error/20 px-4 py-2 text-sm font-medium text-error transition-all hover:border-error/40 hover:bg-error/10 disabled:opacity-50"
-                >
-                  {busy === `disconnect:${account.id}`
-                    ? t("Disconnecting...")
-                    : t("Disconnect")}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-6 pt-4 border-t border-border flex gap-3">
-          <a
-            href="/api/instagram/connect"
-            className="px-4 py-2 rounded text-sm font-medium transition-colors bg-accent text-white hover:bg-accent-hover"
-          >
-            {t("Connect using your own Meta app")}
-          </a>
-        </div>
-      </section>
 
       <section className="panel rounded p-4 sm:p-6">
         <h2 className="text-base font-semibold mb-6">{t("Team")}</h2>

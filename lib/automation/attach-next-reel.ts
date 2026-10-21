@@ -23,7 +23,9 @@ export type AttachNextReelResult = {
  */
 export async function attachPendingNextReels(): Promise<AttachNextReelResult> {
   const pending = await prisma.automation.findMany({
-    where: { pendingNextReel: true },
+    // "Next reel" is an Instagram concept (see providerCapabilities.nextReel);
+    // Facebook Pages are left alone.
+    where: { pendingNextReel: true, instagramAccount: { provider: { not: "FACEBOOK_PAGE" } } },
     include: { instagramAccount: true },
   });
 

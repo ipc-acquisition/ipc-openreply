@@ -93,7 +93,7 @@ export default function OverviewPage() {
         <p className="text-sm text-error">{error === "Failed to load overview" ? t("Failed to load overview") : error}</p>
         {error.includes("connect") && (
           <a
-            href="/api/instagram/connect"
+            href="/settings"
             className="mt-4 inline-block text-sm text-accent hover:underline"
           >
             {t("Connect Instagram")}
@@ -107,6 +107,10 @@ export default function OverviewPage() {
 
   const { totals, posts, accounts, insightsAvailable, followers, followerHistory } =
     data;
+  // Facebook Pages have neither post insights nor follower history under
+  // Standard Access (see providerCapabilities), so those blocks are not shown
+  // rather than nagging about a permission that cannot be granted.
+  const isPage = data.provider === "FACEBOOK_PAGE";
 
   return (
     <div className="space-y-8">
@@ -159,7 +163,7 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      {!insightsAvailable && (
+      {!insightsAvailable && !isPage && (
         <div className="panel rounded p-4 border border-border">
           <p className="text-sm text-foreground">
             {t("Views, reach, saved and shares need the insights permission.")}
@@ -168,7 +172,7 @@ export default function OverviewPage() {
             {t("Reconnect your account to grant it — likes and comments are shown in the meantime.")}
           </p>
           <a
-            href="/api/instagram/connect"
+            href="/settings"
             className="mt-3 inline-block text-sm text-accent hover:underline"
           >
             {t("Reconnect Instagram")}
@@ -187,7 +191,7 @@ export default function OverviewPage() {
       </div>
 
       {/* Follower trend — account-level, independent of the post range */}
-      <FollowerChart data={followerHistory} followers={followers} />
+      {!isPage && <FollowerChart data={followerHistory} followers={followers} />}
 
       {/* Per-post table */}
       <div className="panel rounded p-4 sm:p-6">
