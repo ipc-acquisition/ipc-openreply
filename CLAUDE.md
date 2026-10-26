@@ -63,11 +63,14 @@ Regras de trabalho:
 - Moderação: ocultar é `POST /{comment-id}` com `is_hidden=true`; reexibir, `is_hidden=false`; apagar, `DELETE /{comment-id}`. Se o comentário já está oculto a Meta devolve `code=1`, `error_subcode=1446036`, **que o `page-client` já trata como sucesso**. Permissões: `pages_manage_engagement` (moderar e responder), `pages_read_user_content` (ler), `pages_messaging` (Messenger), `pages_manage_metadata` (webhook).
 - Nunca moderar nem responder comentários da própria Página (`from.id === page id`, quando o `from` vier; o parser e o reconciler já filtram).
 
-### A confirmar no primeiro teste real (anote o resultado aqui)
+### Resultado do teste real (2026-10-26, Standard Access, segunda conta sem papel no app)
 
-- Se o `from` aparece no webhook `feed` de comentário de quem não tem papel no app. Olhe o payload gravado em `WebhookEvent`.
-- Se toque em botão (postback) abre a janela de 24h no Messenger. Se não abrir, só mensagem de texto inscreve no drip.
-- Se os tokens de Página devolvidos por `/me/accounts` com token de usuário do sistema expiram (o código assume que não).
+- **Comentário em post e em anúncio** chega pelo webhook `feed`, **com o `from` (id e nome)**. A leitura pela API (`/comments`) é que vem sem `from`.
+- **Private reply** é entregue. **Toque em botão** chega (`messaging_postbacks`) e **abre a janela de 24h**: a mensagem seguinte ao toque foi enviada.
+- **Leituras** (`message_reads`) chegam.
+- **Mensagens digitadas (`messages`) e ecos (`message_echoes`) de quem não tem papel no app NÃO chegam**, mesmo com app e Página inscritos nos dois campos e sem dono de conversa (`thread_owner` vazio). Da conta admin chegam. Consequência até a análise do app: fluxo por "qualquer mensagem", "parar" digitado e takeover por eco só funcionam para quem tem papel; para o público, use fluxo ligado ao Comment-to-DM (inscreve no toque do botão). A submissão da análise está em `META_APP_REVIEW.md`.
+- **Token de usuário do sistema não envia para quem não tem papel no app** (`code=10`, "Cannot message users who are not admins, developers or testers"). Por isso o padrão é "Conectar com Facebook".
+- Um comentário da segunda conta foi ocultado pela própria Página 4 segundos depois (`feed/comment/hide` com `from` = Página) sem registro em `ModerationLog`: é a moderação automática do Facebook na Página (Assistente de moderação), não a nossa.
 
 ## Módulo de IA (compartilhado pelas fases 1, 2 e 3)
 
