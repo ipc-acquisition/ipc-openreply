@@ -35,6 +35,7 @@ import {
   getFacebookPagesState,
   removeFacebookConnection,
   saveSystemUserToken,
+  saveUserConnection,
 } from "@/lib/facebook/manage-pages";
 
 const pages = [
@@ -100,11 +101,102 @@ describe("Facebook Pages management", () => {
       name: "Robô",
     });
     expect(pageClient.getSystemUser).toHaveBeenCalledWith("raw-token");
+    const stored = {
+      systemUserToken: "enc:raw-token",
+      systemUserId: "su",
+      tokenKind: "SYSTEM_USER",
+      ownerName: "Robô",
+      tokenExpiresAt: null,
+      dataAccessExpiresAt: null,
+    };
     expect(mockPrisma.facebookPageConnection.upsert).toHaveBeenCalledWith({
       where: { workspaceId: "ws" },
-      create: { workspaceId: "ws", systemUserToken: "enc:raw-token", systemUserId: "su" },
-      update: { systemUserToken: "enc:raw-token", systemUserId: "su" },
+      create: { workspaceId: "ws", ...stored },
+      update: stored,
     });
+  });
+
+  it("refreshes the tokens of already connected Pages when the token is replaced", async () => {
+    mockPrisma.instagramAccount.findMany.mockResolvedValue([
+      { id: "acct-1", instagramId: "p1", username: "Loja", webhookSubscribed: true },
+      { id: "acct-9", instagramId: "gone", username: "Antiga", webhookSubscribed: true },
+    ]);
+    await saveSystemUserToken("ws", "raw-token");
+    // Only the Page the new token still lists gets a new token; nothing is
+    // disconnected, so campaigns, flows and logs survive the replacement.
+    expect(mockPrisma.instagramAccount.update).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.instagramAccount.update).toHaveBeenCalledWith({
+      where: { id: "acct-1" },
+      data: { accessToken: "enc:tok-1", tokenExpiresAt: null },
+    });
+    expect(mockPrisma.instagramAccount.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("stores a Connect with Facebook token as a USER connection with its expiry dates", async () => {
+    mockPrisma.instagramAccount.findMany.mockResolvedValue([
+      { id: "acct-1", instagramId: "p1", username: "Loja", webhookSubscribed: true },
+    ]);
+    const tokenExpiresAt = new Date("2026-12-25T00:00:00Z");
+    const dataAccessExpiresAt = new Date("2027-01-24T00:00:00Z");
+    await expect(
+      saveUserConnection("ws", {
+        token: "user-long",
+        ownerId: "u1",
+        ownerName: "Matheus",
+        tokenExpiresAt,
+        dataAccessExpiresAt,
+      })
+    ).resolves.toEqual({ pages: 2, refreshed: 1 });
+    expect(pageClient.listSystemUserPages).toHaveBeenCalledWith("user-long");
+    const stored = {
+      systemUserToken: "enc:user-long",
+      systemUserId: "u1",
+      tokenKind: "USER",
+      ownerName: "Matheus",
+      tokenExpiresAt,
+      dataAccessExpiresAt,
+    };
+    expect(mockPrisma.facebookPageConnection.upsert).toHaveBeenCalledWith({
+      where: { workspaceId: "ws" },
+      create: { workspaceId: "ws", ...stored },
+      update: stored,
+    });
+    expect(mockPrisma.instagramAccount.update).toHaveBeenCalledWith({
+      where: { id: "acct-1" },
+      data: { accessToken: "enc:tok-1", tokenExpiresAt: null },
+    });
+  });
+
+  it("stores nothing when the Connect with Facebook token cannot list Pages", async () => {
+    pageClient.listSystemUserPages.mockRejectedValue(new Error("bad token"));
+    await expect(
+      saveUserConnection("ws", {
+        token: "user-long",
+        ownerId: "u1",
+        ownerName: null,
+        tokenExpiresAt: null,
+        dataAccessExpiresAt: null,
+      })
+    ).rejects.toThrow("bad token");
+    expect(mockPrisma.facebookPageConnection.upsert).not.toHaveBeenCalled();
+  });
+
+  it("reports the token kind and expiry dates without exposing the token", async () => {
+    mockPrisma.facebookPageConnection.findUnique.mockResolvedValue({
+      systemUserToken: "enc:user-long",
+      systemUserId: "u1",
+      tokenKind: "USER",
+      tokenExpiresAt: new Date("2026-12-25T00:00:00Z"),
+      dataAccessExpiresAt: new Date("2027-01-24T00:00:00Z"),
+    });
+    const state = await getFacebookPagesState("ws");
+    expect(state).toMatchObject({
+      configured: true,
+      tokenKind: "USER",
+      tokenExpiresAt: "2026-12-25T00:00:00.000Z",
+      dataAccessExpiresAt: "2027-01-24T00:00:00.000Z",
+    });
+    expect(JSON.stringify(state)).not.toContain("user-long");
   });
 
   it("rejects a token Meta does not accept, leaving nothing stored", async () => {

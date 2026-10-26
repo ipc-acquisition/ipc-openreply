@@ -6,22 +6,25 @@ import {
   listSystemUserPages,
   subscribePageToWebhooks,
   unsubscribePageFromWebhooks,
+  type FacebookPage,
 } from "@/lib/meta/page-client";
 import { ConnectionError } from "@/lib/facebook/connection-error";
 
 /**
- * Facebook Pages are connected through a Business Manager system user. The
- * owner pastes its token once (saveSystemUserToken); every Page assigned to
- * that user can then be connected as an InstagramAccount with provider
- * FACEBOOK_PAGE and subscribed to the webhook. The token never leaves the
- * server: this module only ever returns Page names, ids and flags.
+ * Facebook Pages are read from one stored token per workspace: either the
+ * long-lived token of the person who clicked "Connect with Facebook"
+ * (saveUserConnection, the default) or a Business Manager system user token
+ * pasted by the owner (saveSystemUserToken). Every Page the token lists can be
+ * connected as an InstagramAccount with provider FACEBOOK_PAGE and subscribed
+ * to the webhook. The token never leaves the server: this module only ever
+ * returns Page names, ids, flags and expiry dates.
  */
 
 export interface FacebookPageOption {
   id: string;
   name: string;
   tasks: string[];
-  /** The system user holds the tasks the product needs on this Page. */
+  /** The token's owner holds the tasks the product needs on this Page. */
   eligible: boolean;
   connected: boolean;
   accountId?: string;
@@ -30,10 +33,36 @@ export interface FacebookPageOption {
 
 export interface FacebookPagesState {
   configured: boolean;
+  tokenKind?: "SYSTEM_USER" | "USER";
+  /** The system user or person behind the stored token. */
   systemUser?: { id: string; name?: string };
+  tokenExpiresAt?: string | null;
+  dataAccessExpiresAt?: string | null;
   pages: FacebookPageOption[];
-  /** Pages connected earlier that the system user no longer lists. */
+  /** Pages connected earlier that the stored token no longer lists. */
   orphaned: Array<{ accountId: string; pageId: string; name: string; webhookSubscribed: boolean }>;
+}
+
+/**
+ * Re-reads the Page tokens of already connected Pages from a newly saved
+ * token, so replacing or reconnecting the token never requires disconnecting a
+ * Page (which would cascade-delete its campaigns, flows and logs). Pages the
+ * new token does not list keep their old token and show up as orphaned.
+ */
+async function refreshConnectedPageTokens(workspaceId: string, pages: FacebookPage[]) {
+  const connected = await connectedPagesOf(workspaceId);
+  const byPageId = new Map(pages.map((p) => [p.id, p]));
+  let refreshed = 0;
+  for (const account of connected) {
+    const page = byPageId.get(account.instagramId);
+    if (!page?.access_token) continue;
+    await prisma.instagramAccount.update({
+      where: { id: account.id },
+      data: { accessToken: encryptToken(page.access_token), tokenExpiresAt: null },
+    });
+    refreshed++;
+  }
+  return refreshed;
 }
 
 async function loadSystemUserToken(workspaceId: string) {
@@ -41,7 +70,7 @@ async function loadSystemUserToken(workspaceId: string) {
     where: { workspaceId },
     select: { systemUserToken: true, systemUserId: true },
   });
-  if (!connection) throw new ConnectionError("Save the system user token first.");
+  if (!connection) throw new ConnectionError("Connect with Facebook or save a system user token first.");
   return { token: decryptToken(connection.systemUserToken), systemUserId: connection.systemUserId };
 }
 
@@ -55,7 +84,13 @@ function connectedPagesOf(workspaceId: string) {
 export async function getFacebookPagesState(workspaceId: string): Promise<FacebookPagesState> {
   const connection = await prisma.facebookPageConnection.findUnique({
     where: { workspaceId },
-    select: { systemUserToken: true, systemUserId: true },
+    select: {
+      systemUserToken: true,
+      systemUserId: true,
+      tokenKind: true,
+      tokenExpiresAt: true,
+      dataAccessExpiresAt: true,
+    },
   });
   if (!connection) return { configured: false, pages: [], orphaned: [] };
 
@@ -70,6 +105,9 @@ export async function getFacebookPagesState(workspaceId: string): Promise<Facebo
 
   return {
     configured: true,
+    tokenKind: connection.tokenKind,
+    tokenExpiresAt: connection.tokenExpiresAt?.toISOString() ?? null,
+    dataAccessExpiresAt: connection.dataAccessExpiresAt?.toISOString() ?? null,
     systemUser: { id: systemUser.id, name: systemUser.name },
     pages: pages.map((p) => {
       const account = byPageId.get(p.id);
@@ -95,21 +133,63 @@ export async function getFacebookPagesState(workspaceId: string): Promise<Facebo
 
 /** Validates the token against Meta before storing it encrypted. */
 export async function saveSystemUserToken(workspaceId: string, token: string) {
-  const [systemUser] = await Promise.all([getSystemUser(token), listSystemUserPages(token)]);
+  const [systemUser, pages] = await Promise.all([getSystemUser(token), listSystemUserPages(token)]);
+  const data = {
+    systemUserToken: encryptToken(token),
+    systemUserId: systemUser.id,
+    tokenKind: "SYSTEM_USER" as const,
+    ownerName: systemUser.name ?? null,
+    tokenExpiresAt: null,
+    dataAccessExpiresAt: null,
+  };
   await prisma.facebookPageConnection.upsert({
     where: { workspaceId },
-    create: { workspaceId, systemUserToken: encryptToken(token), systemUserId: systemUser.id },
-    update: { systemUserToken: encryptToken(token), systemUserId: systemUser.id },
+    create: { workspaceId, ...data },
+    update: data,
   });
+  await refreshConnectedPageTokens(workspaceId, pages);
   return { systemUserId: systemUser.id, name: systemUser.name };
+}
+
+/**
+ * Stores the long-lived token from "Connect with Facebook". The callback has
+ * already exchanged and inspected it; this lists the Pages once more to prove
+ * the token works before replacing whatever was saved.
+ */
+export async function saveUserConnection(
+  workspaceId: string,
+  input: {
+    token: string;
+    ownerId: string;
+    ownerName: string | null;
+    tokenExpiresAt: Date | null;
+    dataAccessExpiresAt: Date | null;
+  }
+) {
+  const pages = await listSystemUserPages(input.token);
+  const data = {
+    systemUserToken: encryptToken(input.token),
+    systemUserId: input.ownerId,
+    tokenKind: "USER" as const,
+    ownerName: input.ownerName,
+    tokenExpiresAt: input.tokenExpiresAt,
+    dataAccessExpiresAt: input.dataAccessExpiresAt,
+  };
+  await prisma.facebookPageConnection.upsert({
+    where: { workspaceId },
+    create: { workspaceId, ...data },
+    update: data,
+  });
+  const refreshed = await refreshConnectedPageTokens(workspaceId, pages);
+  return { pages: pages.length, refreshed };
 }
 
 export async function connectFacebookPage(workspaceId: string, pageId: string) {
   const { token } = await loadSystemUserToken(workspaceId);
   const page = (await listSystemUserPages(token)).find((p) => p.id === pageId);
-  if (!page) throw new ConnectionError("That Page is not assigned to the system user.", 403);
+  if (!page) throw new ConnectionError("That Page is not available to the saved Facebook connection.", 403);
   if (!hasRequiredPageTasks(page)) {
-    throw new ConnectionError("The system user needs the MESSAGING and MODERATE tasks on this Page.", 403);
+    throw new ConnectionError("The connected account needs the MESSAGING and MODERATE tasks on this Page.", 403);
   }
 
   const existing = await prisma.instagramAccount.findUnique({ where: { instagramId: pageId } });

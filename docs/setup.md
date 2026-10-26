@@ -136,20 +136,23 @@ You can skip the entire Meta app section below and continue at [Test it end to e
 
 ## Páginas do Facebook (this fork)
 
-This fork runs on **Facebook Pages only**: comments on the Page and Messenger. Instagram and Zernio stay in the code but are not offered in the interface. There is no OAuth: Pages are connected through a **system user** from the owner's business portfolio, whose token is pasted once into Settings → "Páginas do Facebook". The server validates it (`/me`, `/me/accounts`), encrypts it and never returns it to the browser.
+This fork runs on **Facebook Pages only**: comments on the Page and Messenger. Instagram and Zernio stay in the code but are not offered in the interface. Pages are connected with **"Conectar com Facebook"** in Settings → "Páginas do Facebook": the owner (an admin of the Meta app and of the Pages) logs in through Facebook Login for Business, picks the Pages, and the server stores a long-lived token (about 60 days) encrypted. The Page tokens read from it have no fixed expiry. Nothing is ever returned to the browser except Page names, ids and expiry dates.
+
+**Why not a system user:** under Standard Access Meta only lets the app message people without a role on it when the token comes from someone who has a role. A system user never has an app role, so its Page tokens get `code=10` "Cannot message users who are not admins, developers or testers" (seen on 2026-10-24). A system user token can still be pasted as an advanced option, but it only reaches everyone after App Review grants Advanced Access to `pages_messaging`.
 
 ### On Meta (the owner does this, one step at a time)
 
-1. In the business portfolio (Meta Business Suite → Settings → Users → System users), create a system user.
-2. Assign it the Page (full control) and the app.
-3. Generate a token for the app with `pages_show_list`, `pages_read_engagement`, `pages_read_user_content`, `pages_manage_engagement`, `pages_manage_metadata` and `pages_messaging`. Choose "never expires" if offered. Paste the token **only into the panel**, never into a chat.
+1. In the app dashboard, open **Facebook Login for Business → Configurations** and create a configuration with token type **User access token**, assets **Pages**, and the permissions `pages_show_list`, `pages_read_engagement`, `pages_read_user_content`, `pages_manage_engagement`, `pages_manage_metadata`, `pages_messaging` and `business_management` (the last one makes Pages owned by a business portfolio show up). Note its **configuration ID**.
+2. In **Facebook Login for Business → Settings**, add `https://<your-domain>/api/facebook/callback` to the valid OAuth redirect URIs.
+3. On Vercel, set `FACEBOOK_APP_ID` (App settings → Basic), `FACEBOOK_LOGIN_CONFIG_ID` and `FACEBOOK_APP_SECRET` (also signs the webhook). The worker does not need them. `INSTAGRAM_APP_ID` and `INSTAGRAM_APP_SECRET` are no longer needed.
 4. In the app dashboard, configure the **Page** webhook object: callback URL `https://<your-domain>/api/webhook`, the same `WEBHOOK_VERIFY_TOKEN` as in your environment. The panel subscribes each connected Page to `feed`, `messages`, `messaging_postbacks`, `message_reads` and `message_echoes`; the app-level webhook must have those fields enabled too.
-5. Set `FACEBOOK_APP_SECRET` (signs the webhook) on Vercel and on the Railway worker. `INSTAGRAM_APP_ID` and `INSTAGRAM_APP_SECRET` are no longer needed.
-6. The app must be **Live** for real webhooks. Standard Access is enough: no App Review for the owner's own Pages.
+5. The app must be **Live** for real webhooks. Standard Access is enough for the owner's own Pages, as long as the person who connects has a role on the app.
 
 ### In the panel
 
-Settings → "Páginas do Facebook": paste the token, then connect each Page that lists the `MESSAGING` and `MODERATE` tasks. Each connected Page becomes an account (`provider: FACEBOOK_PAGE`) with its own encrypted Page token, and is subscribed to the webhook. "Reinscrever webhook" repeats the subscription; "Desconectar" unsubscribes and removes the Page.
+Settings → "Páginas do Facebook" → **Conectar com Facebook**, select the Pages in the Facebook window, then connect each Page that lists the `MESSAGING` and `MODERATE` tasks. Each connected Page becomes an account (`provider: FACEBOOK_PAGE`) with its own encrypted Page token, and is subscribed to the webhook. "Reinscrever webhook" repeats the subscription; "Desconectar" unsubscribes and removes the Page **and its campaigns, flows and logs**.
+
+**Reconnecting** ("Reconectar com Facebook", or replacing a system user token) refreshes the tokens of the Pages already connected; nothing is disconnected. The panel shows until when Meta honours the login and warns two weeks before; after that date Page calls fail until someone reconnects.
 
 ### What to expect under Standard Access
 

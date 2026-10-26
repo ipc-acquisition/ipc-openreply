@@ -43,13 +43,13 @@ export function withPageManagement(
       }
       if (error instanceof TokenExpiredError) {
         return NextResponse.json(
-          { success: false, error: "The system user token is invalid or expired. Generate a new one in Meta Business Suite." },
+          { success: false, error: "The saved Facebook token is invalid or expired. Reconnect with Facebook." },
           { status: 502 }
         );
       }
       if (error instanceof PermissionError) {
         return NextResponse.json(
-          { success: false, error: "The token is missing a permission or the Page is not assigned to the system user." },
+          { success: false, error: "The token is missing a permission or the Page is not available to this connection." },
           { status: 502 }
         );
       }

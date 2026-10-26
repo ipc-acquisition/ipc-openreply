@@ -46,6 +46,24 @@ export function getMissingInstagramOAuthEnv(): string[] {
   });
 }
 
+// Same idea for "Connect with Facebook" (Facebook Login for Business with a
+// user access token configuration).
+const FACEBOOK_LOGIN_ENV = [
+  "FACEBOOK_APP_ID",
+  "FACEBOOK_APP_SECRET",
+  "FACEBOOK_LOGIN_CONFIG_ID",
+  "ENCRYPTION_KEY",
+  "NEXTAUTH_SECRET",
+] as const;
+
+export function getMissingFacebookLoginEnv(): string[] {
+  return FACEBOOK_LOGIN_ENV.filter((name) => {
+    const value = process.env[name];
+    if (!value) return true;
+    return name === "ENCRYPTION_KEY" && !HEX_32_BYTE.test(value);
+  });
+}
+
 export function getMetaGraphApiVersion(): string {
   return process.env.META_GRAPH_API_VERSION ?? "v25.0";
 }

@@ -1,6 +1,8 @@
 "use client";
 
+import type { StaticMessageKey } from "@/lib/i18n";
 import { useI18n } from "@/lib/i18n/provider";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 type PageOption = {
@@ -15,24 +17,72 @@ type PageOption = {
 
 type PagesState = {
   configured: boolean;
+  tokenKind?: "SYSTEM_USER" | "USER";
   systemUser?: { id: string; name?: string };
+  tokenExpiresAt?: string | null;
+  dataAccessExpiresAt?: string | null;
   pages: PageOption[];
   orphaned: Array<{ accountId: string; pageId: string; name: string; webhookSubscribed: boolean }>;
 };
 
+// Warn this long before Meta stops honouring the person's data access grant.
+const EXPIRY_WARNING_MS = 14 * 24 * 60 * 60 * 1000;
+
+// Statuses the /api/facebook/callback and /api/facebook/login redirects set.
+const NOTICES: Record<string, { tone: "success" | "warning" | "error"; title: StaticMessageKey; detail?: StaticMessageKey }> = {
+  connected: {
+    tone: "success",
+    title: "Facebook connected",
+    detail: "Select the Pages you want to use and click Connect.",
+  },
+  no_pages: {
+    tone: "warning",
+    title: "No Pages were shared",
+    detail: "Facebook login worked, but no Page came with it. Connect again and select the Pages in the Facebook window.",
+  },
+  denied: {
+    tone: "warning",
+    title: "Facebook connection cancelled",
+    detail: "You closed the Facebook window or declined the permissions. Start again and accept them.",
+  },
+  invalid: {
+    tone: "error",
+    title: "Facebook connection expired",
+    detail: "The login link was missing or older than 10 minutes. Click Connect with Facebook to try again.",
+  },
+  forbidden: {
+    tone: "error",
+    title: "Not permitted",
+    detail: "Only workspace owners and admins can connect Facebook Pages.",
+  },
+  misconfigured: { tone: "error", title: "Facebook login is not configured" },
+  failed: { tone: "error", title: "Facebook connection failed" },
+};
+
+const TONE_CLASSES = {
+  success: "border-success/30 bg-success/5 text-success",
+  warning: "border-warning/30 bg-warning/5 text-warning",
+  error: "border-error/30 bg-error/5 text-error",
+} as const;
+
 export function FacebookPagesConnection({ canManage }: { canManage: boolean }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const searchParams = useSearchParams();
   const [data, setData] = useState<PagesState | null>(null);
   const [token, setToken] = useState("");
   const [replacing, setReplacing] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
+  // When the state was loaded; expiry math runs against it, never against a
+  // clock read during render.
+  const [loadedAt, setLoadedAt] = useState<number | null>(null);
 
   const refresh = useCallback(async () => {
     const response = await fetch("/api/facebook/pages", { cache: "no-store" });
     const result = await response.json();
     if (!result.success) throw new Error(result.error);
     setData(result.data);
+    setLoadedAt(Date.now());
   }, []);
 
   useEffect(() => {
@@ -42,6 +92,7 @@ export function FacebookPagesConnection({ canManage }: { canManage: boolean }) {
       .then((result) => {
         if (!result.success) throw new Error(result.error);
         setData(result.data);
+        setLoadedAt(Date.now());
       })
       .catch((e) =>
         setError(e instanceof Error ? e.message : "Could not load connection.")
@@ -72,6 +123,31 @@ export function FacebookPagesConnection({ canManage }: { canManage: boolean }) {
     }
   }
 
+  const isUser = data?.tokenKind === "USER";
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : locale, { dateStyle: "medium" });
+  // Page calls stop working at the data access expiry; fall back to the token's.
+  const accessEndsAt = isUser ? (data?.dataAccessExpiresAt ?? data?.tokenExpiresAt ?? null) : null;
+  const accessMsLeft = accessEndsAt && loadedAt ? new Date(accessEndsAt).getTime() - loadedAt : null;
+
+  const status = searchParams.get("facebook");
+  const notice = status ? NOTICES[status] : undefined;
+  const missingEnv = (searchParams.get("missing") ?? "").split(",").filter(Boolean);
+  const failureReason = searchParams.get("reason");
+
+  const connectButton = (
+    <a
+      href="/api/facebook/login"
+      className={
+        data?.configured
+          ? "rounded border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-border-hover"
+          : "rounded bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent-hover"
+      }
+    >
+      {data?.configured ? t("Reconnect with Facebook") : t("Connect with Facebook")}
+    </a>
+  );
+
   const tokenForm = (
     <form
       className="space-y-3"
@@ -95,6 +171,11 @@ export function FacebookPagesConnection({ canManage }: { canManage: boolean }) {
       <p className="text-xs leading-5 text-muted">
         {t(
           "Generate the token in Meta Business Suite with the pages_show_list, pages_read_engagement, pages_read_user_content, pages_manage_engagement, pages_manage_metadata and pages_messaging permissions. It is encrypted and never shown again."
+        )}
+      </p>
+      <p className="text-xs leading-5 text-warning">
+        {t(
+          "Under Standard Access a system user can only message people who have a role on the app. Connect with Facebook to reach everyone who comments."
         )}
       </p>
       <div className="flex gap-3">
@@ -126,7 +207,11 @@ export function FacebookPagesConnection({ canManage }: { canManage: boolean }) {
         {t("Facebook Pages")}
       </h2>
       <p className="mt-1 text-sm text-muted">
-        {t("Comments and Messenger on your Pages run through a system user from your business portfolio.")}
+        {data?.configured && !isUser
+          ? t("Comments and Messenger on your Pages run through a system user from your business portfolio.")
+          : t(
+              "Log in with the Facebook account that manages your Pages and select them in the Facebook window. Comments and Messenger then run through that account."
+            )}
       </p>
 
       {!canManage ? (
@@ -135,21 +220,59 @@ export function FacebookPagesConnection({ canManage }: { canManage: boolean }) {
         </p>
       ) : (
         <>
+          {notice && (
+            <div role="status" className={`mt-4 rounded border p-3 text-sm ${TONE_CLASSES[notice.tone]}`}>
+              <p className="font-semibold">{t(notice.title)}</p>
+              {notice.detail && <p className="mt-1">{t(notice.detail)}</p>}
+              {status === "misconfigured" && missingEnv.length > 0 && (
+                <p className="mt-1">{t("Set these environment variables: {names}", { names: missingEnv.join(", ") })}</p>
+              )}
+              {status === "failed" && failureReason && <p className="mt-1 break-words">{failureReason}</p>}
+            </div>
+          )}
+
           {error && (
             <p role="alert" className="mt-4 rounded border border-error/30 bg-error/5 p-3 text-sm text-error">
               {error === "Could not load connection." ? t("Could not load connection.") : error}
             </p>
           )}
 
-          {data && !data.configured && <div className="mt-5">{tokenForm}</div>}
+          {/* Always available, so an expired token can be replaced even when
+              the saved connection can no longer be loaded. */}
+          <div className="mt-5 flex flex-wrap items-center gap-3">{connectButton}</div>
+
+          {data && !data.configured && (
+            <div className="mt-4">
+              {replacing ? (
+                tokenForm
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setReplacing(true)}
+                  className="text-xs underline underline-offset-4 text-muted hover:text-foreground"
+                >
+                  {t("Use a system user token instead")}
+                </button>
+              )}
+            </div>
+          )}
 
           {data?.configured && (
             <div className="mt-5 space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-                <p className="text-sm text-foreground">
-                  {t("System user: {name}", { name: data.systemUser?.name ?? data.systemUser?.id ?? "" })}
-                </p>
-                {!replacing && (
+                <div className="space-y-1">
+                  <p className="text-sm text-foreground">
+                    {isUser
+                      ? t("Connected with Facebook as {name}", { name: data.systemUser?.name ?? data.systemUser?.id ?? "" })
+                      : t("System user: {name}", { name: data.systemUser?.name ?? data.systemUser?.id ?? "" })}
+                  </p>
+                  {accessEndsAt && accessMsLeft !== null && accessMsLeft > EXPIRY_WARNING_MS && (
+                    <p className="text-xs text-muted">
+                      {t("Facebook access valid until {date}.", { date: formatDate(accessEndsAt) })}
+                    </p>
+                  )}
+                </div>
+                {!isUser && !replacing && (
                   <button
                     type="button"
                     onClick={() => setReplacing(true)}
@@ -160,15 +283,27 @@ export function FacebookPagesConnection({ canManage }: { canManage: boolean }) {
                 )}
               </div>
 
-              {replacing && tokenForm}
+              {accessEndsAt && accessMsLeft !== null && accessMsLeft <= EXPIRY_WARNING_MS && (
+                <p role="alert" className="rounded border border-warning/30 bg-warning/5 p-3 text-sm text-warning">
+                  {accessMsLeft <= 0
+                    ? t("Facebook access has expired. Reconnect to resume campaigns.")
+                    : t("Facebook access expires on {date}. Reconnect before then to keep campaigns running.", {
+                        date: formatDate(accessEndsAt),
+                      })}
+                </p>
+              )}
+
+              {!isUser && replacing && tokenForm}
 
               <div className="space-y-3">
                 <p className="text-sm font-medium text-foreground">
-                  {t("Pages assigned to the system user")}
+                  {isUser ? t("Pages available to this connection") : t("Pages assigned to the system user")}
                 </p>
                 {data.pages.length === 0 && (
                   <p className="text-sm text-muted">
-                    {t("No Pages are assigned to this system user. Assign the Page in Meta Business Suite and reload.")}
+                    {isUser
+                      ? t("No Pages were shared with this connection. Reconnect with Facebook and select the Pages in the Facebook window.")
+                      : t("No Pages are assigned to this system user. Assign the Page in Meta Business Suite and reload.")}
                   </p>
                 )}
                 {data.pages.map((page) => (
@@ -250,7 +385,9 @@ export function FacebookPagesConnection({ canManage }: { canManage: boolean }) {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-foreground">{page.name}</p>
                       <p className="mt-1 text-xs text-warning">
-                        {t("This Page is no longer assigned to the system user.")}
+                        {isUser
+                          ? t("This Page is no longer available to this connection.")
+                          : t("This Page is no longer assigned to the system user.")}
                       </p>
                     </div>
                     <button
@@ -276,12 +413,14 @@ export function FacebookPagesConnection({ canManage }: { canManage: boolean }) {
                 type="button"
                 disabled={busy !== null}
                 onClick={() => {
-                  if (confirm(t("Remove the system user token? Disconnect its Pages first.")))
-                    void act("remove", { method: "DELETE" });
+                  const question = isUser
+                    ? t("Remove the Facebook connection? Disconnect its Pages first.")
+                    : t("Remove the system user token? Disconnect its Pages first.");
+                  if (confirm(question)) void act("remove", { method: "DELETE" });
                 }}
                 className="text-xs underline underline-offset-4 text-muted hover:text-foreground disabled:opacity-50"
               >
-                {t("Remove system user token")}
+                {isUser ? t("Remove Facebook connection") : t("Remove system user token")}
               </button>
             </div>
           )}

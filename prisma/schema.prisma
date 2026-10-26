@@ -446,13 +446,32 @@ model ZernioConnection {
 // InstagramAccount with provider FACEBOOK_PAGE (instagramId = Page id,
 // accessToken = encrypted Page token). The system user token is kept here,
 // encrypted, so Page tokens can be regenerated via /me/accounts.
+/// The token Pages are read from, one per workspace. Despite the column names
+/// (kept for the additive-schema rule), it is either a system user token or a
+/// long-lived token of the person who clicked "Connect with Facebook"
+/// (`tokenKind`). Under Standard Access only the second can message people
+/// without a role on the app, because a system user never has an app role.
 model FacebookPageConnection {
-  workspaceId     String   @id
-  systemUserToken String
-  systemUserId    String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId         String   @id
+  systemUserToken     String
+  systemUserId        String
+  tokenKind           FacebookTokenKind @default(SYSTEM_USER)
+  /// Display name of the system user or person behind the token.
+  ownerName           String?
+  /// When the long-lived user token itself expires (about 60 days). Page tokens
+  /// derived from it keep working past this date.
+  tokenExpiresAt      DateTime?
+  /// When Meta stops honouring the person's data access grant (about 90 days
+  /// without a new login). Page calls fail after it until they reconnect.
+  dataAccessExpiresAt DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+enum FacebookTokenKind {
+  SYSTEM_USER
+  USER
 }
 
 // --- Comment moderation -----------------------------------------------------
