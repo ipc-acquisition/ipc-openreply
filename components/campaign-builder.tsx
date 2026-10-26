@@ -797,9 +797,47 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
           )}
         </Section>
 
-        {/* Opening DM and follow-gating are not offered any more: a
-            comment-to-DM sends one private reply, and anything after the
-            person's answer is a Flow. Existing campaigns keep their values. */}
+        {/* The opening DM is the private reply when it is on: a message with a
+            postback button whose tap delivers the DM below. Under Standard
+            Access that tap is the only answer from people without a role on
+            the app that reaches us (typed replies do not), so it is what starts
+            the flow picked under "After they reply". Follow-gating is still
+            not offered: Pages expose no follow status. */}
+        <Section title={t("They will get")}>
+          <div className="rounded-lg border border-border p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-foreground">{t("an opening DM")}</span>
+              <Toggle
+                on={openingDmEnabled}
+                onToggle={() => setOpeningDmEnabled(!openingDmEnabled)}
+              />
+            </div>
+            <p className="mt-2 text-xs leading-5 text-muted">
+              {t(
+                "Recommended. The person taps the button to get the DM below, and that tap is what starts the flow. Until Meta approves pages_messaging, typed replies from people without a role on the app do not reach us, so a link button alone cannot start a flow."
+              )}
+            </p>
+            {openingDmEnabled && (
+              <div className="mt-3 space-y-2">
+                <textarea
+                  value={openingDmMessage}
+                  onChange={(e) => setOpeningDmMessage(e.target.value)}
+                  placeholder={t("Hey there! I'm so happy you're here 😊")}
+                  rows={3}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none resize-none"
+                  maxLength={1000}
+                />
+                <input
+                  value={openingDmButtonLabel}
+                  onChange={(e) => setOpeningDmButtonLabel(e.target.value)}
+                  placeholder={t("Send me the link")}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none"
+                  maxLength={20}
+                />
+              </div>
+            )}
+          </div>
+        </Section>
 
         <Section title={t("And then, they will get")}>
           <div className="rounded-lg border border-border p-3 space-y-2">
@@ -890,6 +928,13 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
             <p className="text-xs text-muted">
               {t("Flows run inside the 24h window the reply opens. Manage them in Flows.")}
             </p>
+            {flowId && !openingDmEnabled && (
+              <p role="alert" className="rounded border border-warning/30 bg-warning/5 p-2 text-xs leading-5 text-warning">
+                {t(
+                  "Turn on the opening DM above: without its button tap, this flow only starts for people who have a role on the app."
+                )}
+              </p>
+            )}
           </div>
         </Section>
       </div>
