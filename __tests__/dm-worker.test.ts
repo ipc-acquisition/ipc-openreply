@@ -59,35 +59,43 @@ vi.mock("@/lib/db/client", () => ({
   prisma: mockPrisma,
 }));
 
-vi.mock("@/lib/meta/client", () => ({
-  sendPrivateReply: mockSendPrivateReply,
-  sendPrivateReplyWithLinkButton: mockSendPrivateReplyWithLinkButton,
-  sendPrivateReplyWithButton: mockSendPrivateReplyWithButton,
-  getUserFollowStatus: mockGetUserFollowStatus,
-  sendDirectMessageWithButton: mockSendDirectMessageWithButton,
-  sendDirectMessage: mockSendDirectMessage,
-  sendDirectMessageWithLinkButton: mockSendDirectMessageWithLinkButton,
-  sendCommentReply: vi.fn(),
-  MetaApiError: class MetaApiError extends Error {
+vi.mock("@/lib/meta/client", () => {
+  class MetaApiError extends Error {
     code: number;
+    subcode: number | undefined;
     constructor(
       code: number,
-      _subcode: number | undefined,
+      subcode: number | undefined,
       _fbTraceId: string | undefined,
       message: string
     ) {
       super(message);
       this.code = code;
+      this.subcode = subcode;
       this.name = "MetaApiError";
     }
-  },
-  TokenExpiredError: class TokenExpiredError extends Error {
-    name = "TokenExpiredError";
-  },
-  RateLimitError: class RateLimitError extends Error {
-    name = "RateLimitError";
-  },
-}));
+  }
+  return {
+    sendPrivateReply: mockSendPrivateReply,
+    sendPrivateReplyWithLinkButton: mockSendPrivateReplyWithLinkButton,
+    sendPrivateReplyWithButton: mockSendPrivateReplyWithButton,
+    getUserFollowStatus: mockGetUserFollowStatus,
+    sendDirectMessageWithButton: mockSendDirectMessageWithButton,
+    sendDirectMessage: mockSendDirectMessage,
+    sendDirectMessageWithLinkButton: mockSendDirectMessageWithLinkButton,
+    sendCommentReply: vi.fn(),
+    MetaApiError,
+    isOutsideMessagingWindowError: (error: unknown) =>
+      error instanceof MetaApiError &&
+      (error.subcode === 2018278 || /outside of allowed window/i.test(error.message)),
+    TokenExpiredError: class TokenExpiredError extends Error {
+      name = "TokenExpiredError";
+    },
+    RateLimitError: class RateLimitError extends Error {
+      name = "RateLimitError";
+    },
+  };
+});
 
 vi.mock("@/lib/meta/oauth", () => ({
   decryptToken: mockDecryptToken,

@@ -291,6 +291,34 @@ describe("processFlowStep", () => {
     expect(queueAdd).not.toHaveBeenCalled();
   });
 
+  it("pauses on the closed-window subcode even when Meta answers in Portuguese", async () => {
+    sendButtons.mockRejectedValue(
+      new MetaApiError(100, 2018278, "t", "(#10) Essa mensagem foi enviada fora do espaço de tempo permitido.")
+    );
+    await processFlowStep(job());
+    expect(mockPrisma.flowEnrollment.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "PAUSED_WINDOW" }) })
+    );
+  });
+
+  it("does not mistake a Standard Access refusal (also code 10) for a closed window", async () => {
+    sendButtons.mockRejectedValue(
+      new MetaApiError(
+        100,
+        undefined,
+        "t",
+        "Cannot message users who are not admins, developers or testers of the app until pages_messaging permission is reviewed and the app is live."
+      )
+    );
+    await processFlowStep(job());
+    expect(mockPrisma.flowSendLog.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ update: expect.objectContaining({ status: "FAILED" }) })
+    );
+    expect(mockPrisma.flowEnrollment.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "PAUSED_WINDOW" }) })
+    );
+  });
+
   it("records other failures and still moves on to the next step", async () => {
     sendButtons.mockRejectedValue(new Error("connection reset"));
     await processFlowStep(job());

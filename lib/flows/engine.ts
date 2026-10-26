@@ -8,6 +8,7 @@ import {
 import {
   createInstagramContext,
   hasInstagramCredentials,
+  isOutsideMessagingWindowError,
   MetaApiError,
   sendDirectMessage,
   sendDirectMessageWithLinkButton,
@@ -353,8 +354,11 @@ function isTemplateRejection(error: unknown) {
   );
 }
 
+// By subcode, not code: a Standard Access refusal ("cannot message users who
+// are not admins, developers or testers") is also code 10, and pausing the
+// enrollment for it would wait on a window that is in fact open.
 function isWindowClosedRejection(error: unknown) {
-  return error instanceof MetaApiError && (error.code === 10 || /outside of allowed window/i.test(error.message));
+  return isOutsideMessagingWindowError(error);
 }
 
 async function advance(

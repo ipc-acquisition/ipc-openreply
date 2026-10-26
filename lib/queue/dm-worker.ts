@@ -33,6 +33,7 @@ import {
   MetaApiError,
   RateLimitError,
   TokenExpiredError,
+  isOutsideMessagingWindowError,
   getUserFollowStatus,
   sendCommentReply,
   sendDirectMessage,
@@ -140,8 +141,10 @@ function isTemplateRejection(error: unknown): boolean {
     return false;
   }
   // Falling back is another send: allow it only for a proven template error.
+  // The window check also goes by subcode, since Meta localizes the message.
   return error instanceof MetaApiError && error.code === 100 &&
     /template|button/i.test(error.message) &&
+    !isOutsideMessagingWindowError(error) &&
     !NON_TEMPLATE_REJECTIONS.some((pattern) => pattern.test(error.message));
 }
 

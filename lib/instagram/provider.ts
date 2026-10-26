@@ -3,6 +3,7 @@ export {
   RateLimitError,
   TokenExpiredError,
   PermissionError,
+  isOutsideMessagingWindowError,
 } from "@/lib/meta/client";
 export type {
   InstagramComment,

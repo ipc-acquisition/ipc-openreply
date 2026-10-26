@@ -37,10 +37,24 @@ export class RateLimitError extends MetaApiError {
 }
 
 export class PermissionError extends MetaApiError {
-  constructor(message: string, fbTraceId?: string) {
-    super(100, undefined, fbTraceId, message);
+  // Meta's codes 10, 100 and 200 all land here with code 100. The original
+  // subcode is kept: it is the only language-independent way to tell a closed
+  // Messenger window from a missing permission (both arrive as code 10, and
+  // the message text follows the token owner's Facebook language).
+  constructor(message: string, fbTraceId?: string, subcode?: number) {
+    super(100, subcode, fbTraceId, message);
     this.name = "PermissionError";
   }
+}
+
+/** Meta's subcode for a Messenger send outside the 24-hour window. */
+export const OUTSIDE_MESSAGING_WINDOW_SUBCODE = 2018278;
+
+export function isOutsideMessagingWindowError(error: unknown): boolean {
+  return (
+    error instanceof MetaApiError &&
+    (error.subcode === OUTSIDE_MESSAGING_WINDOW_SUBCODE || /outside of allowed window/i.test(error.message))
+  );
 }
 
 interface GraphApiError {
@@ -137,7 +151,7 @@ export async function handleResponse<T>(response: Response): Promise<T> {
       case 10:
       case 100:
       case 200:
-        throw new PermissionError(message, traceId);
+        throw new PermissionError(message, traceId, subcode);
       default:
         throw new MetaApiError(code, subcode, traceId, message);
     }
