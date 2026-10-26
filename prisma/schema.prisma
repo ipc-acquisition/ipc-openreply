@@ -201,6 +201,10 @@ model Automation {
   openingDmMessage     String?
   openingDmButtonLabel String?
   linkButtonLabel      String?
+  // Put the tracked link inside the DM text (clickable) instead of in a
+  // button. Applies to the DM with the link: the private reply itself when
+  // there is no opening DM, or the message after the opening DM's tap.
+  linkInText           Boolean @default(false)
   requireFollow           Boolean @default(false)
   followPromptMessage     String?
   followPromptButtonLabel String?

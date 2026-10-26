@@ -99,3 +99,44 @@ export function renderMessageWithTracking({
 
   return rendered;
 }
+
+/**
+ * The link-in-text format (Automation.linkInText): every tracked link goes in
+ * the message itself, where Messenger makes it clickable, instead of in
+ * buttons. The first link takes the place of {link} (or of its destination URL
+ * pasted in the text); without either it goes on a line of its own at the
+ * end, so it is never dropped. Further links follow, one per line, after their
+ * label when they have one.
+ */
+export function renderMessageWithInlineLinks({
+  message,
+  commenterName,
+  trackedLinks,
+  baseUrl,
+  recipientToken,
+}: {
+  message: string;
+  commenterName?: string | null;
+  trackedLinks: Array<MessageTrackedLink & { label?: string | null }>;
+  baseUrl?: string;
+  recipientToken?: string;
+}) {
+  const rendered = renderMessageWithTracking({
+    message,
+    commenterName,
+    trackedLinks,
+    baseUrl,
+    recipientToken,
+  }).trim();
+  const [primary, ...extra] = trackedLinks;
+  if (!primary) return rendered;
+
+  const lines = [rendered];
+  const primaryUrl = buildTrackedUrl(primary.slug, baseUrl, recipientToken);
+  if (!rendered.includes(primaryUrl)) lines.push(primaryUrl);
+  for (const link of extra) {
+    const url = buildTrackedUrl(link.slug, baseUrl, recipientToken);
+    lines.push(link.label ? `${link.label}: ${url}` : url);
+  }
+  return lines.filter(Boolean).join("\n");
+}

@@ -43,6 +43,7 @@ interface LoadedCampaign {
   openingDmMessage: string | null;
   openingDmButtonLabel: string | null;
   linkButtonLabel: string | null;
+  linkInText?: boolean;
   requireFollow: boolean;
   followPromptMessage: string | null;
   followPromptButtonLabel: string | null;
@@ -173,6 +174,7 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
   const [linkOpen, setLinkOpen] = useState(false);
   const [trackedDestinationUrl, setTrackedDestinationUrl] = useState("");
   const [linkButtonLabel, setLinkButtonLabel] = useState("Open link");
+  const [linkInText, setLinkInText] = useState(false);
   const [secondLinkOpen, setSecondLinkOpen] = useState(false);
   const [secondaryDestinationUrl, setSecondaryDestinationUrl] = useState("");
   const [secondaryButtonLabel, setSecondaryButtonLabel] = useState("Open link");
@@ -279,6 +281,7 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
         setOpeningDmButtonLabel(c.openingDmButtonLabel ?? "");
         setDmMessage(c.dmMessage);
         setLinkButtonLabel(c.linkButtonLabel ?? "Open link");
+        setLinkInText(c.linkInText ?? false);
         setIsActive(c.isActive);
         const link = c.trackedLinks?.[0]?.destinationUrl ?? "";
         setTrackedDestinationUrl(link);
@@ -435,6 +438,7 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
         : [],
       trackedDestinationUrl: trackedDestinationUrl.trim() || "",
       linkButtonLabel: linkButtonLabel.trim() || "Open link",
+      linkInText,
       secondaryDestinationUrl: secondaryDestinationUrl.trim() || "",
       secondaryButtonLabel: secondaryButtonLabel.trim() || "Open link",
       requireFollow,
@@ -859,13 +863,46 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
                   placeholder="https://yourlink.com/offer"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none"
                 />
-                <input
-                  value={linkButtonLabel}
-                  onChange={(e) => setLinkButtonLabel(e.target.value)}
-                  placeholder={t("Button label (e.g. Open link)")}
-                  maxLength={20}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none"
-                />
+                {/* Messenger does not make links clickable inside a button
+                    message, so "in the text" sends a plain text DM instead. */}
+                <div className="space-y-1.5">
+                  <span className="text-xs text-muted">{t("How the link appears")}</span>
+                  <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t("How the link appears")}>
+                    {[
+                      { value: false, label: t("In a button") },
+                      { value: true, label: t("In the text") },
+                    ].map((option) => (
+                      <button
+                        key={String(option.value)}
+                        type="button"
+                        role="radio"
+                        aria-checked={linkInText === option.value}
+                        onClick={() => setLinkInText(option.value)}
+                        className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
+                          linkInText === option.value
+                            ? "border-accent/60 bg-accent/10 text-foreground"
+                            : "border-border text-muted hover:text-foreground"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  {linkInText && (
+                    <p className="text-xs leading-5 text-muted">
+                      {t("The link goes where {link} is in the message, or on its own line at the end. It is clickable and still counts clicks.", { link: "{link}" })}
+                    </p>
+                  )}
+                </div>
+                {!linkInText && (
+                  <input
+                    value={linkButtonLabel}
+                    onChange={(e) => setLinkButtonLabel(e.target.value)}
+                    placeholder={t("Button label (e.g. Open link)")}
+                    maxLength={20}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent/60 focus:ring-3 focus:ring-accent/15 focus:outline-none"
+                  />
+                )}
                 {secondLinkOpen ? (
                   <div className="space-y-2 border-t border-border pt-2">
                     <input
@@ -960,6 +997,7 @@ export default function CampaignBuilder({ mode, campaignId }: CampaignBuilderPro
             revealMessage={dmMessage}
             hasLink={Boolean(trackedDestinationUrl.trim())}
             linkButtonLabel={linkButtonLabel || "Open link"}
+            linkInText={linkInText}
             linkUrl={trackedDestinationUrl.trim() || undefined}
             hasSecondLink={
               secondLinkOpen && Boolean(secondaryDestinationUrl.trim())

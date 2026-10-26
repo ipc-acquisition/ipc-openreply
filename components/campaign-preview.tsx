@@ -34,6 +34,7 @@ interface CampaignPreviewProps {
   revealMessage: string;
   hasLink: boolean;
   linkButtonLabel: string;
+  linkInText?: boolean;
   linkUrl?: string;
   hasSecondLink: boolean;
   secondLinkButtonLabel: string;
@@ -318,6 +319,7 @@ function DmScreen({
   revealMessage,
   hasLink,
   linkButtonLabel,
+  linkInText = false,
   hasSecondLink,
   secondLinkButtonLabel,
   requireFollow,
@@ -337,6 +339,7 @@ function DmScreen({
   revealMessage: string;
   hasLink: boolean;
   linkButtonLabel: string;
+  linkInText?: boolean;
   linkUrl?: string;
   hasSecondLink: boolean;
   secondLinkButtonLabel: string;
@@ -412,11 +415,17 @@ function DmScreen({
         )}
         {(() => {
           const resolved = revealMessage.replace(/\{username\}/g, SAMPLE_USER);
-          const hasToken = resolved.includes("{link}");
-          const showCard = hasLink && hasToken;
+          // Mirrors the worker: with a link, the DM is a button card unless the
+          // campaign puts the link in the text, where it is always present
+          // (in place of {link}, or on its own line at the end).
+          const showCard = hasLink && !linkInText;
           const bodyText = showCard
             ? resolved.replace(/\s*\{link\}\s*/g, " ").trim()
             : resolved;
+          const inlineMessage =
+            linkInText && hasLink && !revealMessage.includes("{link}")
+              ? `${revealMessage}\n{link}`
+              : revealMessage;
           return (
             <div className="flex items-end gap-2">
               <Avatar url={avatarUrl} size={24} />
@@ -427,7 +436,14 @@ function DmScreen({
                       ? t("Write a message")
                       : showCard
                         ? bodyText
-                        : renderMessage(revealMessage, hasLink, linkUrl, t("your link"))}
+                        : renderMessage(inlineMessage, hasLink, linkUrl, t("your link"))}
+                    {linkInText && hasLink && hasSecondLink && (
+                      <>
+                        {"\n"}
+                        {secondLinkButtonLabel ? `${secondLinkButtonLabel}: ` : ""}
+                        <span className="text-sky-400 underline break-all">{t("your link")}</span>
+                      </>
+                    )}
                   </p>
                 )}
                 {showCard && (
@@ -526,6 +542,7 @@ export default function CampaignPreview(props: CampaignPreviewProps) {
             revealMessage={props.revealMessage}
             hasLink={props.hasLink}
             linkButtonLabel={props.linkButtonLabel}
+            linkInText={props.linkInText}
             hasSecondLink={props.hasSecondLink}
             secondLinkButtonLabel={props.secondLinkButtonLabel}
             requireFollow={props.requireFollow}
@@ -548,6 +565,7 @@ export default function CampaignPreview(props: CampaignPreviewProps) {
             revealMessage={props.revealMessage}
             hasLink={props.hasLink}
             linkButtonLabel={props.linkButtonLabel}
+            linkInText={props.linkInText}
             hasSecondLink={props.hasSecondLink}
             secondLinkButtonLabel={props.secondLinkButtonLabel}
             requireFollow={props.requireFollow}

@@ -625,6 +625,35 @@ describe("DM Worker — Full Pipeline", () => {
     );
   });
 
+  it("should put tracked links in the text when the campaign uses the link-in-text format", async () => {
+    mockPrisma.automation.findMany.mockResolvedValue([
+      {
+        ...mockAutomation,
+        dmMessage: "Hey {username}! Here is the offer: {link}",
+        linkButtonLabel: "Get offer",
+        linkInText: true,
+        trackedLinks: [
+          { slug: "abc123", label: "Primary campaign link", destinationUrl: "https://example.com" },
+          { slug: "def456", label: "Book a call", destinationUrl: "https://example.com/book" },
+        ],
+      },
+    ]);
+
+    const processor = getProcessor();
+    await processor(createMockJob());
+
+    // A plain text private reply, where Messenger makes the links clickable;
+    // no button template at all.
+    const token = hashRecipientId(mockJobData.commenterId);
+    expect(mockSendPrivateReply).toHaveBeenCalledWith(
+      "decrypted_token",
+      "ig_456",
+      "comment_555",
+      `Hey commenter_user! Here is the offer: http://localhost:3000/r/abc123?r=${token}\nBook a call: http://localhost:3000/r/def456?r=${token}`
+    );
+    expect(mockSendPrivateReplyWithLinkButton).not.toHaveBeenCalled();
+  });
+
   it("should send a follow-gate prompt when a non-follower comments", async () => {
     mockGetUserFollowStatus.mockResolvedValue(false); // not following yet
     mockPrisma.automation.findMany.mockResolvedValue([
@@ -1129,6 +1158,32 @@ describe("DM Worker — DM keyword trigger", () => {
 
     expect(mockSendDirectMessageWithLinkButton).toHaveBeenCalled();
     expect(mockSendDirectMessage).not.toHaveBeenCalled();
+  });
+
+  it("should send the link inside the text when the campaign uses the link-in-text format", async () => {
+    mockPrisma.automation.findMany.mockResolvedValue([
+      {
+        ...dmTriggerAutomation,
+        dmMessage: "Here you go",
+        linkButtonLabel: "Get it",
+        linkInText: true,
+        trackedLinks: [
+          { slug: "abc123", label: "Get it", destinationUrl: "https://example.com/offer" },
+        ],
+      },
+    ]);
+
+    const processor = getProcessor();
+    await processor(createMockMessageJob());
+
+    // No {link} in the text: the link still goes out, on its own line.
+    expect(mockSendDirectMessage).toHaveBeenCalledWith(
+      "decrypted_token",
+      "ig_456",
+      "commenter_999",
+      `Here you go\nhttp://localhost:3000/r/abc123?r=${hashRecipientId("commenter_999")}`
+    );
+    expect(mockSendDirectMessageWithLinkButton).not.toHaveBeenCalled();
   });
 
   it("should send the follow prompt instead of the link to a non-follower", async () => {

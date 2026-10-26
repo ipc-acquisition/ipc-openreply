@@ -58,6 +58,7 @@ import {
 import { recordWorkerAlert } from "@/lib/ops/worker-health";
 import {
   buildTrackedUrl,
+  renderMessageWithInlineLinks,
   renderMessageWithTracking,
   renderMessageWithoutLink,
 } from "@/lib/tracking/message";
@@ -199,6 +200,7 @@ function buildInlineLinkFallback(
 type RevealAutomation = {
   dmMessage: string;
   linkButtonLabel: string | null;
+  linkInText: boolean;
   trackedLinks: WorkerTrackedLink[];
   instagramAccount: { instagramId: string };
 };
@@ -230,6 +232,21 @@ async function sendRevealDirectMessage({
         message: automation.dmMessage,
         commenterName,
         trackedLinks: automation.trackedLinks,
+      }),
+    });
+    return;
+  }
+
+  if (automation.linkInText) {
+    await sendDirectMessage({
+      context: accessToken,
+      instagramAccountId: automation.instagramAccount.instagramId,
+      userId: userId,
+      message: renderMessageWithInlineLinks({
+        message: automation.dmMessage,
+        commenterName,
+        trackedLinks: automation.trackedLinks,
+        recipientToken: hashRecipientId(userId),
       }),
     });
     return;
@@ -729,6 +746,22 @@ async function processComment(job: Job<ProcessCommentJob>): Promise<void> {
           text: promptText,
           buttonTitle: automation.followPromptButtonLabel || "i'm following",
           payload: `followcheck:${automation.id}`,
+          postId: mediaId,
+        });
+        recipientId = sent?.recipient_id;
+      } else if (automation.trackedLinks.length > 0 && automation.linkInText) {
+        // Link-in-text format: a plain text private reply, where Messenger
+        // makes the tracked link clickable (button template text is not).
+        const sent = await sendPrivateReply({
+          context: accessToken,
+          instagramAccountId: automation.instagramAccount.instagramId,
+          commentId: commentId,
+          message: renderMessageWithInlineLinks({
+            message: automation.dmMessage,
+            commenterName,
+            trackedLinks: automation.trackedLinks,
+            recipientToken: hashRecipientId(commenterId),
+          }),
           postId: mediaId,
         });
         recipientId = sent?.recipient_id;

@@ -10,9 +10,61 @@ import { hashRecipientId, parseRecipientToken } from "../lib/tracking/server";
 import {
   buildTrackedUrl,
   extractFirstUrl,
+  renderMessageWithInlineLinks,
   renderMessageWithTracking,
   replaceUrlWithTrackedPlaceholder,
 } from "../lib/tracking/message";
+
+describe("link-in-text messages", () => {
+  const base = "https://app.test";
+  const primary = { slug: "abc", destinationUrl: "https://example.com/offer", label: "Oferta" };
+  const second = { slug: "def", destinationUrl: "https://example.com/call", label: "Agendar" };
+
+  it("puts the first link where {link} is", () => {
+    expect(
+      renderMessageWithInlineLinks({
+        message: "Oi {username}, aqui: {link} 👇",
+        commenterName: "Ana",
+        trackedLinks: [primary],
+        baseUrl: base,
+        recipientToken: "tok",
+      })
+    ).toBe("Oi Ana, aqui: https://app.test/r/abc?r=tok 👇");
+  });
+
+  it("appends the link on its own line when the text has neither {link} nor the URL", () => {
+    expect(
+      renderMessageWithInlineLinks({ message: "Segue o link", trackedLinks: [primary], baseUrl: base })
+    ).toBe("Segue o link\nhttps://app.test/r/abc");
+  });
+
+  it("swaps a pasted destination URL for the tracked one instead of repeating it", () => {
+    expect(
+      renderMessageWithInlineLinks({
+        message: "Veja https://example.com/offer agora",
+        trackedLinks: [primary],
+        baseUrl: base,
+      })
+    ).toBe("Veja https://app.test/r/abc agora");
+  });
+
+  it("lists further links one per line, after their label", () => {
+    expect(
+      renderMessageWithInlineLinks({
+        message: "Escolha: {link}",
+        trackedLinks: [primary, second],
+        baseUrl: base,
+        recipientToken: "tok",
+      })
+    ).toBe("Escolha: https://app.test/r/abc?r=tok\nAgendar: https://app.test/r/def?r=tok");
+  });
+
+  it("leaves a message without tracked links as plain personalized text", () => {
+    expect(
+      renderMessageWithInlineLinks({ message: "Oi {username}", commenterName: "Ana", trackedLinks: [] })
+    ).toBe("Oi Ana");
+  });
+});
 
 describe("tracked link messages", () => {
   it("extracts a destination URL and replaces it with the tracked placeholder", () => {
