@@ -85,7 +85,7 @@ Crie `lib/ai/claude.ts`:
 
 ## Fase 0 — Infraestrutura (feita)
 
-Web na Vercel (`retention-meta.publisherscompany.com`), Postgres no Supabase (session pooler), Redis e worker no Railway, Resend para login com `ALLOWED_EMAILS`. Detalhes e o passo a passo da Meta estão em `docs/setup.md`, seção "Páginas do Facebook".
+Web na Vercel (`retention-meta.publisherscompany.com`), Postgres no Supabase, Redis e worker no Railway, Resend para login com `ALLOWED_EMAILS`. **Conexões:** a Vercel usa o *transaction pooler* (porta 6543) em `DATABASE_URL` e o *session pooler* (5432) em `MIGRATE_DATABASE_URL`, que o `prisma.config.ts` usa para o `migrate deploy` do build. O worker e o `.env` local ficam no session pooler. Com a Vercel no session pooler, as instâncias esgotaram o limite (`EMAXCONNSESSION max clients reached in session mode`, 2026-10-26) e todo acesso ao banco falhava, inclusive a sessão do painel ("Unauthorized"). Detalhes e o passo a passo da Meta estão em `docs/setup.md`, seção "Páginas do Facebook".
 
 Critério de aceite, com uma Página conectada pelo painel: uma conta sem papel no app comenta a palavra-chave e recebe a private reply em segundos; o `DmLog` fica `SENT` com `recipientId` preenchido; a resposta pública aparece no comentário; quando a pessoa responde no Messenger, o follow-up chega; comentários da própria Página são ignorados.
 

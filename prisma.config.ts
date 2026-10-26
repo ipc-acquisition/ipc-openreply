@@ -9,6 +9,11 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // The CLI (migrate deploy on every Vercel build) needs a session-mode
+    // connection: migrations hold an advisory lock that a transaction pooler
+    // cannot keep. MIGRATE_DATABASE_URL lets the web runtime use the
+    // transaction pooler through DATABASE_URL while migrations stay on the
+    // session pooler. Unset, both use DATABASE_URL as before.
+    url: process.env["MIGRATE_DATABASE_URL"] ?? process.env["DATABASE_URL"],
   },
 });
