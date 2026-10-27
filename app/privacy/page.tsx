@@ -1,74 +1,144 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import LegalShell from "@/components/legal-shell";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy - OpenReply",
+  title: "Privacy Policy - IPC",
   description:
-    "How OpenReply handles Instagram account data, webhook payloads, billing data, and customer campaign information.",
+    "How International Publishers Company handles data from its Facebook Pages, Messenger conversations and comment moderation.",
 };
 
 export default function PrivacyPage() {
   return (
     <LegalShell
       title="Privacy Policy"
-      description="OpenReply helps businesses send Meta-compliant private replies when people comment on connected Instagram posts or reels."
-      updatedAt="May 24, 2026"
+      description="International Publishers Company (“IPC”, “we”) runs this tool to answer comments and Messenger conversations on the Facebook Pages our business owns. It is not offered to other businesses."
+      updatedAt="October 27, 2026"
     >
       <section>
-        <h2 className="text-xl font-bold text-foreground">Data We Collect</h2>
+        <h2 className="text-xl font-bold text-foreground">Who This Covers</h2>
         <p className="mt-3">
-          We collect account email addresses for authentication, workspace and
-          billing metadata, connected Instagram account identifiers, encrypted
-          Instagram access tokens, campaign settings, webhook payloads,
-          comments needed to process campaigns, delivery logs, and operational
-          diagnostics.
+          This policy covers two groups: members of our team who sign in to the
+          tool, and people who comment on our Facebook Pages, posts or ads, or
+          send messages to our Pages in Messenger.
+        </p>
+      </section>
+
+      <section>
+        <h2 className="text-xl font-bold text-foreground">Data We Collect</h2>
+        <p className="mt-3">From people who interact with our Pages:</p>
+        <ul className="mt-3 list-disc space-y-2 pl-5">
+          <li>
+            The Page-scoped ID that Facebook assigns to you for our Page, and
+            the name Facebook shares with it.
+          </li>
+          <li>
+            The text of comments you leave on our posts and ads, and of the
+            messages you exchange with our Page in Messenger.
+          </li>
+          <li>
+            Button taps, read receipts, delivery status and the time of each
+            interaction.
+          </li>
+          <li>
+            Clicks on links we send you. We store a one-way hash of your
+            identifier and of your IP address, the browser user agent and the
+            referring page, never the IP address itself.
+          </li>
+        </ul>
+        <p className="mt-3">From our team and Page administrators:</p>
+        <ul className="mt-3 list-disc space-y-2 pl-5">
+          <li>The email address used to sign in to the tool.</li>
+          <li>
+            When a Page administrator connects our Pages with Facebook Login
+            for Business: their Facebook user ID and name, a user access token,
+            and access tokens for the Pages they select.
+          </li>
+        </ul>
+        <p className="mt-3">
+          We also keep the webhook notifications Meta sends us about these
+          events, campaign and flow settings, and operational logs.
         </p>
       </section>
 
       <section>
         <h2 className="text-xl font-bold text-foreground">How We Use Data</h2>
+        <ul className="mt-3 list-disc space-y-2 pl-5">
+          <li>
+            To send one private reply to a comment that asks for it, and a
+            public reply under that comment.
+          </li>
+          <li>
+            To continue a Messenger conversation you start or opt into, only
+            inside the 24-hour messaging window Meta allows. We do not use
+            message tags and never message you outside that window.
+          </li>
+          <li>
+            To stop all automated messages when you write “stop” (or “parar”,
+            “sair”, “cancelar”).
+          </li>
+          <li>
+            To hide comments on our own Pages that contain spam, scams or
+            offensive content.
+          </li>
+          <li>
+            To measure delivery, reads and link clicks, troubleshoot failures
+            and keep the service secure.
+          </li>
+        </ul>
         <p className="mt-3">
-          We use this data to authenticate users, connect Instagram
-          integrations, match comment keywords, send private replies through the
-          official Meta APIs, prevent duplicate sends, troubleshoot failures,
-          and protect the service.
+          We do not sell your data, share it with advertisers, or use it to
+          target ads. We do not ask for Facebook passwords, scrape Facebook or
+          use browser automation. All actions go through Meta’s official APIs
+          with the permissions a Page administrator granted.
         </p>
       </section>
 
       <section>
-        <h2 className="text-xl font-bold text-foreground">Instagram And Meta Data</h2>
+        <h2 className="text-xl font-bold text-foreground">Service Providers</h2>
         <p className="mt-3">
-          OpenReply does not ask for Instagram passwords, scrape Instagram, or
-          use browser automation. Instagram tokens are encrypted at rest and are
-          used only to perform actions authorized by the connected business
-          account.
+          We use Vercel (website and webhooks), Railway (message queue and
+          sending), Supabase (database) and Resend (sign-in email). If we turn
+          on AI-assisted moderation or replies, the text of a comment is sent
+          to Anthropic to classify it or draft a reply. These providers process
+          data only to run the service for us. Meta processes your comments and
+          messages as the operator of Facebook and Messenger.
         </p>
       </section>
 
       <section>
-        <h2 className="text-xl font-bold text-foreground">Subprocessors</h2>
+        <h2 className="text-xl font-bold text-foreground">Security</h2>
         <p className="mt-3">
-          The production service may use hosting, database, Redis queue, email,
-          and observability providers such as Vercel, Railway, PostgreSQL,
-          Redis, and Resend. These providers process data only as needed to run
-          the service.
+          Access tokens are encrypted at rest with AES-256-GCM and are never
+          sent to the browser. Only team members on an approved email list can
+          sign in.
         </p>
       </section>
 
       <section>
         <h2 className="text-xl font-bold text-foreground">Retention And Deletion</h2>
         <p className="mt-3">
-          Customers can disconnect Instagram from settings, which removes the
-          stored Instagram connection and stops campaigns. For account or data
-          deletion, follow the Data Deletion page linked from the footer.
+          We keep data while the Page it belongs to is connected. Disconnecting
+          a Page deletes its campaigns, flows, contacts, delivery logs and click
+          records. You can ask us to delete your data at any time; see the{" "}
+          <Link href="/data-deletion" className="font-semibold underline">
+            Data Deletion
+          </Link>{" "}
+          page.
         </p>
       </section>
 
       <section>
         <h2 className="text-xl font-bold text-foreground">Contact</h2>
         <p className="mt-3">
-          For privacy questions, contact the repository owner through GitHub or
-          the support email configured for the hosted OpenReply service.
+          International Publishers Company,{" "}
+          <a
+            href="mailto:privacy@publisherscompany.com"
+            className="font-semibold underline"
+          >
+            privacy@publisherscompany.com
+          </a>
+          .
         </p>
       </section>
     </LegalShell>

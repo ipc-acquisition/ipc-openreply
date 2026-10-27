@@ -2,44 +2,70 @@ import type { Metadata } from "next";
 import LegalShell from "@/components/legal-shell";
 
 export const metadata: Metadata = {
-  title: "Data Deletion - OpenReply",
+  title: "Data Deletion - IPC",
   description:
-    "How OpenReply customers can disconnect Instagram and request account or campaign data deletion.",
+    "How to stop automated messages and ask International Publishers Company to delete the data from your comments and Messenger conversations with its Facebook Pages.",
 };
 
 export default function DataDeletionPage() {
   return (
     <LegalShell
       title="Data Deletion"
-      description="Use this page for Meta App Review and customer requests about removing OpenReply account, workspace, Instagram, and campaign data."
-      updatedAt="May 24, 2026"
+      description="How to stop automated messages from our Facebook Pages and how to ask International Publishers Company (“IPC”) to delete your data."
+      updatedAt="October 27, 2026"
     >
       <section>
-        <h2 className="text-xl font-bold text-foreground">Disconnect Instagram</h2>
+        <h2 className="text-xl font-bold text-foreground">
+          Stop Automated Messages
+        </h2>
         <p className="mt-3">
-          Sign in, open Settings, and select Disconnect. This removes the stored
-          Instagram connection token and stops campaigns from sending private
-          replies for that workspace.
+          In the Messenger conversation with our Page, write “stop” (or
+          “parar”, “sair”, “cancelar”). Automated messages from that Page end
+          immediately and you get a short confirmation.
         </p>
       </section>
 
       <section>
-        <h2 className="text-xl font-bold text-foreground">Delete Workspace Data</h2>
+        <h2 className="text-xl font-bold text-foreground">Delete Your Data</h2>
         <p className="mt-3">
-          To delete workspace, campaign, log, webhook, billing reference, and
-          operational diagnostic data, contact support from the email address
-          used to sign in. Include the workspace name and the Instagram username
-          connected to the workspace.
+          If you commented on or messaged one of our Facebook Pages, email{" "}
+          <a
+            href="mailto:privacy@publisherscompany.com"
+            className="font-semibold underline"
+          >
+            privacy@publisherscompany.com
+          </a>{" "}
+          with the subject “Delete my data”, or send that request to the Page
+          in Messenger. Tell us the name on your Facebook profile, the Page you
+          interacted with and roughly when.
+        </p>
+        <p className="mt-3">
+          We delete your Page-scoped ID, name, the comments and messages we
+          stored, delivery logs, click records and the webhook notifications
+          about you, and we confirm by reply within 30 days. Comments and
+          messages that remain on Facebook itself are controlled by Meta; you
+          can delete those in Facebook and Messenger.
+        </p>
+      </section>
+
+      <section>
+        <h2 className="text-xl font-bold text-foreground">
+          Page Administrators
+        </h2>
+        <p className="mt-3">
+          Sign in, open Settings, and select Disconnect next to the Page. This
+          removes the Page’s access token and deletes its campaigns, flows,
+          contacts, delivery logs and click records. You can also remove the
+          app from Facebook under Settings, Business integrations, which
+          revokes its access.
         </p>
       </section>
 
       <section>
         <h2 className="text-xl font-bold text-foreground">Verification</h2>
         <p className="mt-3">
-          We may ask you to verify control of the email address or connected
-          business account before deleting data. Deletion requests are processed
-          as quickly as practical unless retention is required for legal,
-          billing, fraud prevention, or security reasons.
+          We may ask a short question to confirm the request is yours before
+          deleting. We keep only what the law requires us to keep.
         </p>
       </section>
     </LegalShell>

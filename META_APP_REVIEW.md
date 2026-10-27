@@ -28,7 +28,7 @@ Não peça o recurso "Human Agent": o produto não envia nada fora da janela de 
 ## Antes de enviar
 
 1. **Verificação da empresa** do portfólio dono do app (Configurações do negócio → Central de segurança → Verificação). Documento da empresa: cartão CNPJ, contrato social ou comprovante bancário em nome da empresa, com nome e endereço iguais aos do portfólio. Costuma levar alguns dias.
-2. **App básico completo** (Configurações do app → Básico): ícone 1024×1024, categoria, e as URLs `https://retention-meta.publisherscompany.com/privacy`, `/terms` e `/data-deletion`. As três já existem; revise se o texto delas cita Páginas do Facebook e Messenger (hoje falam de Instagram).
+2. **App básico completo** (Configurações do app → Básico): ícone 1024×1024, categoria, e as URLs `https://retention-meta.publisherscompany.com/privacy`, `/terms` e `/data-deletion`. As três descrevem Páginas do Facebook e Messenger em nome da International Publishers Company, com contato `privacy@publisherscompany.com` (esse endereço precisa receber e-mail).
 3. **Comando cURL de envio**: no painel do app → Messenger → *API Integration Helper*, gere a amostra de envio de mensagem para a Página e copie o cURL **sem o token** (troque o token por `<PAGE_ACCESS_TOKEN>`).
 4. **Conta de teste para a gravação**: adicione a segunda conta do Facebook como **Testador** do app (Funções do app → Funções). Assim as mensagens digitadas dela chegam durante a gravação, antes da aprovação. Os revisores aceitam a gravação com conta de teste.
 5. **Interface em inglês** durante a gravação: o painel tem idioma `en`; troque no seletor de idioma do painel.
