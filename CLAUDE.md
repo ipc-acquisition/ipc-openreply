@@ -10,7 +10,7 @@ Nossa missão é acrescentar três coisas, sem reescrever o que já funciona:
 2. **Respostas públicas com IA** (opcional por campanha): resposta curta e contextual no comentário, com fallback para templates.
 3. **Fluxos** (substitui o ManyChat): quando a pessoa manda DM para a Página, ela entra numa sequência de mensagens com CTAs, enviadas enquanto a janela de 24h estiver aberta, com métricas por mensagem.
 
-Uso: só Páginas do dono (Standard Access, sem App Review). Idioma da interface: pt-BR. **Sem follow-gating**: o dono não quer nada de "exigir que siga"; Páginas não têm status de seguidor e o worker ignora `requireFollow` para elas.
+Uso: só Páginas do dono. Acesso avançado a `pages_messaging`, `pages_manage_metadata` e `pages_show_list` aprovado na análise do app em 2026-11-12; o resto segue em Standard Access. Idioma da interface: pt-BR. **Sem follow-gating**: o dono não quer nada de "exigir que siga"; Páginas não têm status de seguidor e o worker ignora `requireFollow` para elas.
 
 ## Estado atual (2026-10-21)
 
@@ -68,9 +68,10 @@ Regras de trabalho:
 - **Comentário em post e em anúncio** chega pelo webhook `feed`, **com o `from` (id e nome)**. A leitura pela API (`/comments`) é que vem sem `from`.
 - **Private reply** é entregue. **Toque em botão** chega (`messaging_postbacks`) e **abre a janela de 24h**: a mensagem seguinte ao toque foi enviada.
 - **Leituras** (`message_reads`) chegam.
-- **Mensagens digitadas (`messages`) e ecos (`message_echoes`) de quem não tem papel no app NÃO chegam**, mesmo com app e Página inscritos nos dois campos e sem dono de conversa (`thread_owner` vazio). Da conta admin chegam. Consequência até a análise do app: fluxo por "qualquer mensagem", "parar" digitado e takeover por eco só funcionam para quem tem papel; para o público, use fluxo ligado ao Comment-to-DM (inscreve no toque do botão). A submissão da análise está em `META_APP_REVIEW.md`.
+- **Mensagens digitadas (`messages`) e ecos (`message_echoes`) de quem não tem papel no app NÃO chegavam** sob Standard Access, mesmo com app e Página inscritos nos dois campos e sem dono de conversa (`thread_owner` vazio). Da conta admin chegavam. A análise do app (`META_APP_REVIEW.md`) foi aprovada em 2026-11-12 e **resolveu isso**: no mesmo dia, uma conta sem papel comentou LINK, digitou "INFO" na conversa da private reply, a mensagem chegou pelo webhook e o fluxo por palavra respondeu. Os ecos dos nossos envios também chegam, com `message.app_id` = id do nosso app.
 - **Token de usuário do sistema não envia para quem não tem papel no app** (`code=10`, "Cannot message users who are not admins, developers or testers"). Por isso o padrão é "Conectar com Facebook".
-- Um comentário da segunda conta foi ocultado pela própria Página 4 segundos depois (`feed/comment/hide` com `from` = Página) sem registro em `ModerationLog`: é a moderação automática do Facebook na Página (Assistente de moderação), não a nossa.
+- Um comentário da segunda conta foi ocultado pela própria Página 4 segundos depois (`feed/comment/hide` com `from` = Página) sem registro em `ModerationLog`: não foi a nossa moderação. Pode ter sido o Assistente de moderação do Facebook ou o NapoleonCat (ver abaixo); não confirmado.
+- **O NapoleonCat continua conectado à Página de teste** e responde comentários publicamente ("{nome} I’ve sent you a message!", app id `472198409461580`), inclusive comentários antigos. Em 2026-11-12 isso gerou duas respostas no mesmo comentário (a nossa e a dele). Para saber quem publicou uma resposta da Página, peça `GET /{comment-id}/comments?fields=from,message,application`.
 
 ## Módulo de IA (compartilhado pelas fases 1, 2 e 3)
 
@@ -177,7 +178,7 @@ Critério de aceite: dez comentários diferentes geram dez respostas diferentes 
 
 ### Conceito
 
-Qualquer DM recebida pela Página (depois de uma private reply ou direto) entra nos fluxos cujo gatilho casa (padrão: qualquer mensagem; palavras só filtram) e no fluxo ligado ao Comment-to-DM cuja private reply a pessoa recebeu nos últimos 7 dias. Cada passo tem atraso relativo ao anterior, texto com `{username}` e até 3 botões (texto livre + URL rastreada). Antes de cada envio, revalidamos tudo e conferimos a janela de 24h. Toque em botão de Comment-to-DM também inscreve (ver "A confirmar": se postback não abrir a janela, o primeiro passo cai em `SKIPPED_WINDOW` até a pessoa escrever).
+Qualquer DM recebida pela Página (depois de uma private reply ou direto) entra nos fluxos cujo gatilho casa (padrão: qualquer mensagem; palavras só filtram) e no fluxo ligado ao Comment-to-DM cuja private reply a pessoa recebeu nos últimos 7 dias. Cada passo tem atraso relativo ao anterior, texto com `{username}` e até 3 botões (texto livre + URL rastreada). Antes de cada envio, revalidamos tudo e conferimos a janela de 24h. Toque em botão de Comment-to-DM também inscreve (o toque abre a janela de 24h, confirmado no teste real).
 
 ### Modelos (existem; mudanças só aditivas)
 
@@ -215,4 +216,4 @@ AI_DAILY_CALL_CAP=5000
 
 ## Fora do escopo agora
 
-App Review / Advanced Access, contas de terceiros, Instagram, WhatsApp, follow-gating, editor visual em canvas, cobrança.
+Pedir novas permissões na análise do app, contas de terceiros, Instagram, WhatsApp, follow-gating, editor visual em canvas, cobrança.
